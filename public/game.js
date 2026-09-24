@@ -1,17 +1,18 @@
 // Shared game logic — loaded by the server (require) and the browser (window.Poker).
 (function (root) {
-  const RANKS = [9, 10, 11, 12, 13, 14];
+  const RANKS = [8, 9, 10, 11, 12, 13, 14]; // 8 through A: 28 cards
   const SUITS = ['s', 'h', 'd', 'c'];
-  const RANK_LABEL = { 9: '9', 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
-  const RANK_ONE = { 9: 'Nine', 10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace' };
-  const RANK_MANY = { 9: 'Nines', 10: 'Tens', 11: 'Jacks', 12: 'Queens', 13: 'Kings', 14: 'Aces' };
+  const RANK_LABEL = { 8: '8', 9: '9', 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+  const RANK_ONE = { 8: 'Eight', 9: 'Nine', 10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace' };
+  const RANK_MANY = { 8: 'Eights', 9: 'Nines', 10: 'Tens', 11: 'Jacks', 12: 'Queens', 13: 'Kings', 14: 'Aces' };
   const SUIT_SYM = { s: '♠', h: '♥', d: '♦', c: '♣' };
   const SUIT_NAME = { s: 'spades', h: 'hearts', d: 'diamonds', c: 'clubs' };
   // Remapped ranking: flush sits directly under straight flush.
   const CAT = { HIGH: 0, PAIR: 1, TWO_PAIR: 2, TRIPS: 3, STRAIGHT: 4, FULL_HOUSE: 5, QUADS: 6, FLUSH: 7, STRAIGHT_FLUSH: 8 };
   const CAT_NAME = ['High card', 'Pair', 'Two pair', 'Three of a kind', 'Straight', 'Full house', 'Four of a kind', 'Flush', 'Straight flush'];
-  // The only straights: 9-10-J-Q-K and 10-J-Q-K-A (A-9-10-J-Q is NOT a straight).
-  const STRAIGHTS = [[10, 11, 12, 13, 14], [9, 10, 11, 12, 13]]; // high first
+  // The only straights: 8-Q, 9-K and 10-A. The ace is high only (A-8-9-10-J is NOT a straight).
+  const STRAIGHTS = [[10, 11, 12, 13, 14], [9, 10, 11, 12, 13], [8, 9, 10, 11, 12]]; // high first
+  const DECK_SIZE = RANKS.length * SUITS.length;
 
   function makeDeck() { const d = []; for (const s of SUITS) for (const r of RANKS) d.push({ rank: r, suit: s, up: false }); return d; }
   function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -23,16 +24,19 @@
   }
   function isForbidden(cards) { return hasQuads(cards) || hasStraightFlush(cards); }
 
-  const MAX_PILES = 7;
   // Pile-size limits depend on the table: with 3 or 4 players every pile has 2 to 7 cards;
   // with 2 players any size is allowed (at least 1 card).
-  function sizeLimits(players) { return players >= 3 ? { min: 2, max: 7 } : { min: 1, max: 24 }; }
-  // Pile count is random from (players + 1) to 7, raised if needed so the deck fits under the size cap.
+  function sizeLimits(players) { return players >= 3 ? { min: 2, max: 7 } : { min: 1, max: DECK_SIZE }; }
+  // How many piles a table gets: 2 players 3-7, 3 players 4-7, 4 players 6-8.
+  function pileRange(players) {
+    if (players >= 4) return { lo: 6, hi: 8 };
+    return { lo: Math.max(players + 1, Math.ceil(DECK_SIZE / sizeLimits(players).max)), hi: 7 };
+  }
   // Each card face up with p=0.5. Re-deal until no quads or straight flush among ALL face-up cards,
   // and none inside any single pile.
   function pileCountFor(players) {
-    const lo = Math.min(Math.max(players + 1, Math.ceil(24 / sizeLimits(players).max)), MAX_PILES);
-    return lo + Math.floor(Math.random() * (MAX_PILES - lo + 1));
+    const { lo, hi } = pileRange(players);
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
   }
   // Pick pile sizes uniformly from every way to split `total` cards into `n` piles within the limits.
   const splitWays = {};
@@ -140,6 +144,6 @@
     return { winner: w.pid, price: sorted.length > 1 ? sorted[1].amt : 0, tie: tied.length > 1 };
   }
 
-  const api = { RANKS, SUITS, RANK_LABEL, RANK_ONE, SUIT_SYM, SUIT_NAME, CAT, CAT_NAME, makeDeck, shuffle, dealPiles, pileCountFor, sizeLimits, MAX_PILES, isForbidden, score, cmp, bestFive, describe, resolveAuction };
+  const api = { RANKS, SUITS, RANK_LABEL, RANK_ONE, SUIT_SYM, SUIT_NAME, CAT, CAT_NAME, makeDeck, shuffle, dealPiles, pileCountFor, pileRange, sizeLimits, DECK_SIZE, isForbidden, score, cmp, bestFive, describe, resolveAuction };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Poker = api;
 })(this);
