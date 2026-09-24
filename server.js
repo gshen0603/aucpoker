@@ -118,6 +118,7 @@ function maskedPiles(g, seatId, revealAll = false) {
 
 function startRound(room) {
   const g = room.game;
+  if (g.idx === g.piles.length - 1) { finalPile(room); return; }
   g.status = 'bidding'; g.bids = {}; g.result = null;
   g.endsAt = Date.now() + g.bidSeconds * 1000;
   for (const p of g.players) if (p.coins <= 0) g.bids[p.seatId] = 0;
@@ -155,6 +156,30 @@ function resolveRound(room) {
   g.result = { ...r, bids, timedOut: g.players.filter(p => g.bids[p.seatId] === undefined).map(p => p.seatId) };
   g.status = 'result';
   const ms = room.settings.revealSeconds * 1000;
+  g.nextAt = Date.now() + ms;
+  g.nextTimer = setTimeout(() => advance(room), ms);
+  broadcast(room);
+}
+
+// The final pile has no bidding: all-in is the dominant play (extra cards never hurt a hand,
+// leftover coins are worthless, and second-price means your bid doesn't set your price), so every
+// stack goes in automatically. Biggest stack wins, ties are a coin flip, and the winner pays the
+// second-biggest stack, exactly as if everyone had bid everything.
+function finalPile(room) {
+  const g = room.game;
+  clearGameTimers(g);
+  const bids = g.players.map(p => ({ pid: p.seatId, amt: p.coins }));
+  const top = Math.max(...bids.map(b => b.amt));
+  const tied = bids.filter(b => b.amt === top);
+  const w = tied[Math.floor(Math.random() * tied.length)];
+  const price = bids.map(b => b.amt).sort((a, b) => b - a)[1] ?? 0;
+  const winner = g.players.find(p => p.seatId === w.pid);
+  winner.coins -= price; winner.spent += price; winner.won += 1;
+  g.owners[g.idx] = w.pid;
+  g.bids = Object.fromEntries(bids.map(b => [b.pid, b.amt]));
+  g.result = { winner: w.pid, price, tie: tied.length > 1, bids, timedOut: [], auto: true };
+  g.status = 'result';
+  const ms = (room.settings.revealSeconds + 1) * 1000 + g.players.length * 600;
   g.nextAt = Date.now() + ms;
   g.nextTimer = setTimeout(() => advance(room), ms);
   broadcast(room);

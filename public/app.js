@@ -61,7 +61,7 @@ function pileGrid(cards, opts = {}) {
 }
 // A labeled, outlined box for one pile.
 function pileBox(label, cards, opts = {}) {
-  return `<div class="pilebox"><div class="pilebox-head"><strong>${label}</strong><span class="muted">${cards.length} card${cards.length === 1 ? '' : 's'}</span></div>${pileGrid(cards, opts)}</div>`;
+  return `<div class="pilebox ${opts.final ? 'final' : ''}"><div class="pilebox-head"><strong>${label}</strong><span class="muted">${cards.length} card${cards.length === 1 ? '' : 's'}</span></div>${pileGrid(cards, opts)}${opts.note ? `<p class="small muted">${opts.note}</p>` : ''}</div>`;
 }
 function wonPiles(id, opts = {}) {
   const ps = pilesOf(id);
@@ -82,7 +82,8 @@ function rulesHTML() {
       <p>All 2s through 8s are removed, leaving 24 cards. They're split at random into piles: one more pile than there are players, up to 7 (so 3 to 7 piles with 2 players, 5 to 7 with 4), and each card lands face up or face down with even odds.</p>
       <p>The deal is redone until no straight flush or four of a kind shows among all face-up cards, and none sits inside any single pile.</p></div>
     <div><h3>Bidding</h3>
-      <p>Everyone bids privately on each pile before the timer runs out. The highest bid wins and pays the second-highest bid. Tied top bids are broken at random; if nobody bids above zero, the pile is discarded. Bidding closes early once every bid is in.</p></div>
+      <p>Everyone bids privately on each pile before the timer runs out. The highest bid wins and pays the second-highest bid. Tied top bids are broken at random; if nobody bids above zero, the pile is discarded. Bidding closes early once every bid is in.</p>
+      <p>The final pile has no bidding. Going all in is always the best play there (extra cards can't hurt your hand, and leftover coins are worthless), so everyone's whole stack goes in automatically. The biggest stack takes it and pays the second-biggest; ties are a coin flip. Every coin you spend earlier is a coin you won't have for that last pile.</p></div>
     <div><h3>Showdown</h3>
       <p>Face-down cards stay hidden from everyone, including their owner, until the showdown. Each player then makes their best five-card hand from all the cards they won. Leftover coins don't count.</p></div>
   </div></details>`;
@@ -199,16 +200,25 @@ function renderGame() {
   const pile = g.piles[g.idx], up = pile.filter(c => c.up).length, last = g.idx === g.piles.length - 1;
   $('#pileLabel').textContent = `Pile ${g.idx + 1} / ${g.piles.length}`;
   let foot;
-  if (g.status === 'bidding') foot = `<p class="stage-note">${up} face up, ${pile.length - up} face down. Highest bid wins; the winner pays the second-highest bid.</p>`;
+  const n = g.players.length, revealDelay = ms => `style="animation-delay:${ms}ms"`;
+  if (g.status === 'bidding') foot = `<p class="stage-note">${up} face up, ${pile.length - up} face down. Highest bid wins; the winner pays the second-highest bid.</p>
+    <p class="stage-note">The final pile (pile ${g.piles.length}) has no bidding: it goes to whoever has the most coins at that point.</p>`;
   else {
     const r = g.result;
-    const msg = r.winner === null ? 'Nobody bid, so this pile is discarded.'
+    const msg = r.auto
+      ? `<strong>${esc(pl(r.winner).name)}</strong> has the biggest stack${r.tie ? ' (tied, won on a coin flip)' : ''} and takes the final pile, paying ${r.price} coin${r.price === 1 ? '' : 's'}.`
+      : r.winner === null ? 'Nobody bid, so this pile is discarded.'
       : `<strong>${esc(pl(r.winner).name)}</strong> wins the pile${r.tie ? ' on a random tiebreak' : ''} and pays ${r.price} coin${r.price === 1 ? '' : 's'}.`;
-    foot = `<div class="result"><p>${msg}</p><div class="inline" style="align-items:center"><span class="muted-felt" id="nextin"></span>${you.isHost ? `<button class="primary" id="next">${last ? 'Go to showdown' : 'Next pile now'}</button>` : ''}</div></div>`;
+    foot = `${r.auto ? '<p class="stage-note">Everyone\'s all in. Stacks are revealed from smallest to biggest.</p>' : ''}<div class="result ${r.auto ? 'reveal' : ''}" ${r.auto ? revealDelay(n * 600 + 200) : ''}><p>${msg}</p><div class="inline" style="align-items:center"><span class="muted-felt" id="nextin"></span>${you.isHost ? `<button class="primary" id="next">${last ? 'Go to showdown' : 'Next pile now'}</button>` : ''}</div></div>`;
   }
-  $('#stage').innerHTML = `<div class="stage-head"><h2>Pile ${g.idx + 1} of ${g.piles.length}</h2><span>${pile.length} card${pile.length === 1 ? '' : 's'}</span></div>
+  // Only rebuild the stage when it actually changes, so the final reveal doesn't replay.
+  const stageKey = [g.id, g.idx, g.status].join('|');
+  if ($('#stage').dataset.key !== stageKey) {
+  $('#stage').dataset.key = stageKey;
+  $('#stage').innerHTML = `<div class="stage-head"><h2>${last ? 'Final pile' : `Pile ${g.idx + 1} of ${g.piles.length}`}</h2><span>${pile.length} card${pile.length === 1 ? '' : 's'}</span></div>
     <div class="stage-cards">${pileGrid(pile)}</div>${foot}`;
   if ($('#next')) $('#next').onclick = () => sendMsg({ type: 'next' });
+  }
 
   // Your bid (keyed so updates don't wipe a half-typed number)
   const me = you.seatId ? pl(you.seatId) : null;
@@ -238,21 +248,27 @@ function renderGame() {
 
   if (g.status === 'bidding') {
     $('#bidsTitle').textContent = 'Sealed bids';
+    $('#bidstatus').dataset.key = '';
     const sub = new Set(g.submitted);
     $('#bidstatus').innerHTML = g.players.map(p => `<div class="slot"><div class="slot-head"><strong>${esc(p.name)}</strong>${tags(p)}<span class="coins">${p.coins} coins</span></div>
       <span class="status ${sub.has(p.seatId) ? 'ok' : ''}">${p.coins <= 0 ? 'Out of coins' : sub.has(p.seatId) ? '✓ Locked in' : 'Deciding…'}</span></div>`).join('');
   } else {
-    $('#bidsTitle').textContent = 'Bids revealed';
-    const r = g.result;
-    $('#bidstatus').innerHTML = [...r.bids].sort((a, b) => b.amt - a.amt).map(b => {
-      const p = pl(b.pid), win = b.pid === r.winner;
-      return `<div class="slot ${win ? 'win' : ''}"><div class="slot-head"><strong>${esc(p.name)}</strong>${tags(p)}<span class="coins">${p.coins} coins</span></div>
-        <div><span class="amt">${b.amt}</span> <span class="muted">${r.timedOut.includes(b.pid) ? 'no bid in time' : 'bid'}</span></div>${win ? `<span class="status ok">Won, paid ${r.price}</span>` : ''}</div>`;
-    }).join('');
+    const r = g.result, box = $('#bidstatus'), key = [g.id, g.idx, 'result'].join('|');
+    $('#bidsTitle').textContent = r.auto ? 'Final stacks' : 'Bids revealed';
+    if (box.dataset.key !== key) {
+      box.dataset.key = key;
+      // Final pile: smallest stack first, the winner last. Earlier piles: highest bid first.
+      const order = r.auto ? [...r.bids].sort((a, b) => a.amt - b.amt || (a.pid === r.winner) - (b.pid === r.winner)) : [...r.bids].sort((a, b) => b.amt - a.amt);
+      box.innerHTML = order.map((b, i) => {
+        const p = pl(b.pid), win = b.pid === r.winner;
+        return `<div class="slot ${win ? 'win' : ''} ${r.auto ? 'reveal' : ''}" ${r.auto ? revealDelay(i * 600) : ''}><div class="slot-head"><strong>${esc(p.name)}</strong>${tags(p)}<span class="coins">${p.coins} coins</span></div>
+          <div><span class="amt">${b.amt}</span> <span class="muted">${r.auto ? 'coin stack, all in' : r.timedOut.includes(b.pid) ? 'no bid in time' : 'bid'}</span></div>${win ? `<span class="status ok">${r.auto ? 'Takes the final pile' : 'Won'}, paid ${r.price}</span>` : ''}</div>`;
+      }).join('');
+    }
   }
 
   const rest = g.piles.slice(g.idx + 1);
-  $('#upcoming').innerHTML = rest.length ? rest.map((p, i) => pileBox(`Pile ${g.idx + 2 + i}`, p, { small: true })).join('')
+  $('#upcoming').innerHTML = rest.length ? rest.map((p, i) => { const fin = g.idx + 1 + i === g.piles.length - 1; return pileBox(`Pile ${g.idx + 2 + i}${fin ? ', final' : ''}`, p, { small: true, final: fin, note: fin ? 'No bidding. Goes to the biggest coin stack.' : '' }); }).join('')
     : '<p class="muted">This is the last pile.</p>';
 
   $('#players').innerHTML = g.players.map(p => {
