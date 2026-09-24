@@ -1,6 +1,6 @@
 // Shared game logic — loaded by the server (require) and the browser (window.Poker).
 (function (root) {
-  const RANKS = [8, 9, 10, 11, 12, 13, 14]; // 8 through A: 28 cards
+  const RANKS = [8, 9, 10, 11, 12, 13, 14]; // every rank that can appear
   const SUITS = ['s', 'h', 'd', 'c'];
   const RANK_LABEL = { 8: '8', 9: '9', 10: '10', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
   const RANK_ONE = { 8: 'Eight', 9: 'Nine', 10: 'Ten', 11: 'Jack', 12: 'Queen', 13: 'King', 14: 'Ace' };
@@ -10,11 +10,13 @@
   // Remapped ranking: flush sits directly under straight flush.
   const CAT = { HIGH: 0, PAIR: 1, TWO_PAIR: 2, TRIPS: 3, STRAIGHT: 4, FULL_HOUSE: 5, QUADS: 6, FLUSH: 7, STRAIGHT_FLUSH: 8 };
   const CAT_NAME = ['High card', 'Pair', 'Two pair', 'Three of a kind', 'Straight', 'Full house', 'Four of a kind', 'Flush', 'Straight flush'];
-  // The only straights: 8-Q, 9-K and 10-A. The ace is high only (A-8-9-10-J is NOT a straight).
+  // The only straights: 8-Q (4-player deck only), 9-K and 10-A. The ace is high only.
   const STRAIGHTS = [[10, 11, 12, 13, 14], [9, 10, 11, 12, 13], [8, 9, 10, 11, 12]]; // high first
-  const DECK_SIZE = RANKS.length * SUITS.length;
+  // The deck depends on the table: 9 through A (24 cards) with 2 or 3 players, 8 through A (28) with 4.
+  function ranksFor(players) { return players >= 4 ? RANKS : RANKS.filter(r => r >= 9); }
+  function deckSize(players) { return ranksFor(players).length * SUITS.length; }
 
-  function makeDeck() { const d = []; for (const s of SUITS) for (const r of RANKS) d.push({ rank: r, suit: s, up: false }); return d; }
+  function makeDeck(players) { const d = []; for (const s of SUITS) for (const r of ranksFor(players)) d.push({ rank: r, suit: s, up: false }); return d; }
   function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   function straightHighFromSet(set) { for (const w of STRAIGHTS) if (w.every(r => set.has(r))) return w[4]; return 0; }
   function hasQuads(cards) { const c = {}; for (const x of cards) { c[x.rank] = (c[x.rank] || 0) + 1; if (c[x.rank] >= 4) return true; } return false; }
@@ -26,11 +28,11 @@
 
   // Pile-size limits depend on the table: with 3 or 4 players every pile has 2 to 7 cards;
   // with 2 players any size is allowed (at least 1 card).
-  function sizeLimits(players) { return players >= 3 ? { min: 2, max: 7 } : { min: 1, max: DECK_SIZE }; }
+  function sizeLimits(players) { return players >= 3 ? { min: 2, max: 7 } : { min: 1, max: deckSize(players) }; }
   // How many piles a table gets: 2 players 3-7, 3 players 4-7, 4 players 6-8.
   function pileRange(players) {
     if (players >= 4) return { lo: 6, hi: 8 };
-    return { lo: Math.max(players + 1, Math.ceil(DECK_SIZE / sizeLimits(players).max)), hi: 7 };
+    return { lo: Math.max(players + 1, Math.ceil(deckSize(players) / sizeLimits(players).max)), hi: 7 };
   }
   // Each card face up with p=0.5. Re-deal until no quads or straight flush among ALL face-up cards,
   // and none inside any single pile.
@@ -64,7 +66,7 @@
   function dealPiles(players) {
     const n = pileCountFor(players), lim = sizeLimits(players);
     for (let attempt = 1; attempt <= 200000; attempt++) {
-      const deck = shuffle(makeDeck());
+      const deck = shuffle(makeDeck(players));
       deck.forEach(c => { c.up = Math.random() < 0.5; });
       if (isForbidden(deck.filter(c => c.up))) continue;
       const piles = []; let prev = 0;
@@ -144,6 +146,6 @@
     return { winner: w.pid, price: sorted.length > 1 ? sorted[1].amt : 0, tie: tied.length > 1 };
   }
 
-  const api = { RANKS, SUITS, RANK_LABEL, RANK_ONE, SUIT_SYM, SUIT_NAME, CAT, CAT_NAME, makeDeck, shuffle, dealPiles, pileCountFor, pileRange, sizeLimits, DECK_SIZE, isForbidden, score, cmp, bestFive, describe, resolveAuction };
+  const api = { RANKS, SUITS, RANK_LABEL, RANK_ONE, SUIT_SYM, SUIT_NAME, CAT, CAT_NAME, makeDeck, ranksFor, deckSize, shuffle, dealPiles, pileCountFor, pileRange, sizeLimits, isForbidden, score, cmp, bestFive, describe, resolveAuction };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Poker = api;
 })(this);

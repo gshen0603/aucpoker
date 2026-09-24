@@ -1,9 +1,9 @@
 # Auction Poker
 
-A multiplayer card game. The deck has only 9 through A (24 cards), dealt into 3 to 7 piles
-with cards randomly face up or face down. Players win piles in sealed second-price auctions,
-then the best five-card hand wins. Flushes rank just below straight flushes (above four of a kind),
-and the only straights are 9-K and 10-A.
+A multiplayer card game. The deck has only 9 through A (24 cards) with 2 or 3 players, or 8 through A
+(28 cards) with 4, dealt into 3 to 8 piles with cards randomly face up or face down. Players win piles
+in sealed second-price auctions, then the best five-card hand wins. Flushes rank just below straight
+flushes (above four of a kind), and the only straights are 9-K and 10-A, plus 8-Q with the 4-player deck.
 
 The server holds the full deal and every sealed bid, so browsers never receive face-down cards
 or other players' bids until they're revealed.

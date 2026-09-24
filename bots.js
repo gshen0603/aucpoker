@@ -35,7 +35,7 @@ function hard(ctx, samples = 300) {
   const { me, players, piles, idx } = ctx;
   const left = piles.length - idx;
   const seen = new Set(piles.flat().filter(c => c.rank).map(key));
-  const pool = P.makeDeck().filter(c => !seen.has(key(c)));
+  const pool = P.makeDeck(players.length).filter(c => !seen.has(key(c)));
   const opps = players.filter(p => p.seatId !== me.seatId);
   let pWith = 0, pOther = 0;
   const winShare = (mine, others) => {

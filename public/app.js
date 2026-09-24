@@ -104,9 +104,9 @@ function rulesHTML() {
   return `<details class="rules panel"><summary>How it plays</summary>
   <div class="rules-cols">
     <div><h3>Hand ranks, high to low</h3><ol>${[8, 7, 6, 5, 4, 3, 2, 1, 0].map(i => `<li>${CAT_NAME[i]}</li>`).join('')}</ol>
-      <p>The only straights are 8 to Q, 9 to K, and 10 to A. Aces are high only, so A‑8‑9‑10‑J is not a straight.</p></div>
+      <p>The only straights are 9 to K and 10 to A, plus 8 to Q in the 4-player deck. Aces are high only, so A‑9‑10‑J‑Q is not a straight.</p></div>
     <div><h3>The deck and the deal</h3>
-      <p>All 2s through 7s are removed, leaving 28 cards (8 through A). They're split at random into piles: 3 to 7 piles with 2 players, 4 to 7 with 3, and 6 to 8 with 4. With 3 or 4 players, every pile has 2 to 7 cards, and each card lands face up or face down with even odds.</p>
+      <p>With 2 or 3 players the deck is 9 through A (24 cards); with 4 players it's 8 through A (28 cards). The cards are split at random into piles: 3 to 7 piles with 2 players, 4 to 7 with 3, and 6 to 8 with 4. With 3 or 4 players, every pile has 2 to 7 cards, and each card lands face up or face down with even odds.</p>
       <p>The deal is redone until no straight flush or four of a kind shows among all face-up cards, and none sits inside any single pile.</p></div>
     <div><h3>Bidding</h3>
       <p>Everyone bids privately on each pile before the timer runs out. The highest bid wins and pays the second-highest bid. Tied top bids are broken at random; if nobody bids above zero, the pile is discarded. Bidding closes early once every bid is in.</p>
@@ -205,7 +205,7 @@ function renderLobby() {
     : `<button class="primary" id="sit" ${full ? 'disabled' : ''}>Take a seat</button>${full ? '<p class="muted small">The table is full; you\'re watching.</p>' : ''}`;
   const marathonNote = st.games > 1 && S.seats.length >= 2 ? ` This is a ${st.games}-game marathon: ${tableText(S.seats.length === 4 ? [5, 3, 2, 1] : Array.from({ length: S.seats.length }, (_, i) => S.seats.length - i))} each game. Seats are locked until it ends.` : '';
   if (host) a += `<button class="primary big" id="start" ${S.seats.length < 2 ? 'disabled' : ''}>${st.games > 1 ? `Start the ${st.games}-game marathon` : 'Deal the piles'}</button>
-    <p class="muted small">${S.seats.length < 2 ? 'Fill at least 2 seats with players or bots to start.' : `Everyone seated gets ${st.startCoins} coins and ${st.bidSeconds} seconds per pile. With ${S.seats.length} players there will be ${pileRange(S.seats.length).lo} to ${pileRange(S.seats.length).hi} piles${S.seats.length >= 3 ? ' of 2 to 7 cards each' : ''}.${marathonNote}`}</p>`;
+    <p class="muted small">${S.seats.length < 2 ? 'Fill at least 2 seats with players or bots to start.' : `Everyone seated gets ${st.startCoins} coins and ${st.bidSeconds} seconds per pile. With ${S.seats.length} players the deck is ${S.seats.length >= 4 ? '8' : '9'} through A, dealt into ${pileRange(S.seats.length).lo} to ${pileRange(S.seats.length).hi} piles${S.seats.length >= 3 ? ' of 2 to 7 cards each' : ''}.${marathonNote}`}</p>`;
   else a += '<p class="muted small">The host deals once everyone is seated.</p>';
   $('#lobbyactions').innerHTML = a;
   if ($('#sit')) $('#sit').onclick = () => sendMsg({ type: 'sit', name: store.get('ap.name', '') });
