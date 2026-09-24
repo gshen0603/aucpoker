@@ -24,21 +24,47 @@
   function isForbidden(cards) { return hasQuads(cards) || hasStraightFlush(cards); }
 
   const MAX_PILES = 7;
-  // Pile count is random from (players + 1) to 7. Each card face up with p=0.5. Re-deal until
-  // no quads or straight flush among ALL face-up cards, and none inside any single pile.
+  // Pile-size limits depend on the table: with 3 or 4 players every pile has 2 to 7 cards;
+  // with 2 players any size is allowed (at least 1 card).
+  function sizeLimits(players) { return players >= 3 ? { min: 2, max: 7 } : { min: 1, max: 24 }; }
+  // Pile count is random from (players + 1) to 7, raised if needed so the deck fits under the size cap.
+  // Each card face up with p=0.5. Re-deal until no quads or straight flush among ALL face-up cards,
+  // and none inside any single pile.
   function pileCountFor(players) {
-    const lo = Math.min(players + 1, MAX_PILES);
+    const lo = Math.min(Math.max(players + 1, Math.ceil(24 / sizeLimits(players).max)), MAX_PILES);
     return lo + Math.floor(Math.random() * (MAX_PILES - lo + 1));
   }
+  // Pick pile sizes uniformly from every way to split `total` cards into `n` piles within the limits.
+  const splitWays = {};
+  function ways(k, s, lim) {
+    if (k === 0) return s === 0 ? 1 : 0;
+    const key = [k, s, lim.min, lim.max].join(',');
+    if (splitWays[key] === undefined) {
+      let t = 0;
+      for (let x = lim.min; x <= lim.max && x <= s; x++) t += ways(k - 1, s - x, lim);
+      splitWays[key] = t;
+    }
+    return splitWays[key];
+  }
+  function pileSizes(n, total, lim) {
+    const sizes = []; let left = total;
+    for (let k = n; k > 0; k--) {
+      let r = Math.random() * ways(k, left, lim);
+      for (let x = lim.min; x <= lim.max; x++) {
+        r -= ways(k - 1, left - x, lim);
+        if (r < 0) { sizes.push(x); left -= x; break; }
+      }
+    }
+    return sizes;
+  }
   function dealPiles(players) {
-    const n = pileCountFor(players);
+    const n = pileCountFor(players), lim = sizeLimits(players);
     for (let attempt = 1; attempt <= 200000; attempt++) {
       const deck = shuffle(makeDeck());
       deck.forEach(c => { c.up = Math.random() < 0.5; });
       if (isForbidden(deck.filter(c => c.up))) continue;
-      const cuts = shuffle([...Array(deck.length - 1).keys()].map(i => i + 1)).slice(0, n - 1).sort((a, b) => a - b);
       const piles = []; let prev = 0;
-      for (const g of [...cuts, deck.length]) { piles.push(deck.slice(prev, g)); prev = g; }
+      for (const size of pileSizes(n, deck.length, lim)) { piles.push(deck.slice(prev, prev + size)); prev += size; }
       if (piles.some(isForbidden)) continue;
       return piles;
     }
@@ -114,6 +140,6 @@
     return { winner: w.pid, price: sorted.length > 1 ? sorted[1].amt : 0, tie: tied.length > 1 };
   }
 
-  const api = { RANKS, SUITS, RANK_LABEL, RANK_ONE, SUIT_SYM, SUIT_NAME, CAT, CAT_NAME, makeDeck, shuffle, dealPiles, pileCountFor, MAX_PILES, isForbidden, score, cmp, bestFive, describe, resolveAuction };
+  const api = { RANKS, SUITS, RANK_LABEL, RANK_ONE, SUIT_SYM, SUIT_NAME, CAT, CAT_NAME, makeDeck, shuffle, dealPiles, pileCountFor, sizeLimits, MAX_PILES, isForbidden, score, cmp, bestFive, describe, resolveAuction };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Poker = api;
 })(this);
