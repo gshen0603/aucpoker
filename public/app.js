@@ -19,7 +19,14 @@ function connect() {
   ws.onopen = () => { connected = true; retry = 0; updateConn(); if (pendingJoin) ws.send(JSON.stringify(pendingJoin)); };
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
-    if (m.type === 'joined') { roomCode = m.code; store.set('ap.room', m.code); history.replaceState(null, '', '?room=' + m.code); pendingJoin = { type: 'join', code: m.code, clientId }; }
+    if (m.type === 'build') {
+      // The server was updated since this page loaded: reload once to get the new version.
+      const mine = document.querySelector('meta[name="build"]')?.content;
+      if (mine && m.build !== mine && sessionStorage.getItem('ap.reloadedFor') !== m.build) {
+        sessionStorage.setItem('ap.reloadedFor', m.build); location.reload(); return;
+      }
+    }
+    else if (m.type === 'joined') { roomCode = m.code; store.set('ap.room', m.code); history.replaceState(null, '', '?room=' + m.code); pendingJoin = { type: 'join', code: m.code, clientId }; }
     else if (m.type === 'noroom') { pendingJoin = null; roomCode = null; store.set('ap.room', ''); history.replaceState(null, '', location.pathname); S = null; renderHome("That table doesn't exist anymore. Check the code or start a new one."); }
     else if (m.type === 'error') toast(m.text);
     else if (m.type === 'state') {
@@ -49,7 +56,7 @@ function cardHTML(c, { small = false, hi = false, dim = false } = {}) {
   const red = c.suit === 'h' || c.suit === 'd';
   // A face-down card we can still read is one you bought: only you see it until the showdown.
   const priv = !c.up && S && S.game && S.game.status !== 'showdown';
-  return `<div class="${cls} ${red ? 'red' : ''} ${priv ? 'private' : ''}" aria-label="${RANK_ONE[c.rank]} of ${SUIT_NAME[c.suit]}${priv ? ', visible only to you' : ''}"${priv ? ' title="Only you can see this card"' : ''}><span class="r">${RANK_LABEL[c.rank]}</span><span class="s">${SUIT_SYM[c.suit]}</span></div>`;
+  return `<div class="${cls} ${red ? 'red' : ''} ${priv ? 'private' : ''}" aria-label="${RANK_ONE[c.rank] ?? c.rank} of ${SUIT_NAME[c.suit]}${priv ? ', visible only to you' : ''}"${priv ? ' title="Only you can see this card"' : ''}><span class="r">${RANK_LABEL[c.rank] ?? c.rank}</span><span class="s">${SUIT_SYM[c.suit]}</span></div>`;
 }
 const G = () => S.game;
 const pl = id => G().players.find(p => p.seatId === id);
@@ -73,6 +80,20 @@ function tags(p) {
   if ((p.seatId || p.id) === S.you.seatId) t += '<span class="tag you">you</span>';
   return t;
 }
+// ---------- Marathon helpers ----------
+const fmtPts = x => (Math.round(x * 10) / 10).toString();
+function tableText(t) { return t.map((p, i) => `${p} for ${['1st', '2nd', '3rd', '4th'][i]}`).join(', '); }
+function standingsHTML(m, { compact = false } = {}) {
+  const lead = m.standings.length ? m.standings[0].points : 0;
+  let place = 0, prev = null;
+  return `<table class="standings ${compact ? 'compact' : ''}"><thead><tr><th scope="col">#</th><th scope="col">Player</th>${m.lastAwards && !compact ? '<th scope="col" class="num">Last game</th>' : ''}<th scope="col" class="num">Points</th></tr></thead><tbody>
+    ${m.standings.map((r, i) => {
+      if (prev === null || r.points !== prev) place = i + 1; prev = r.points;
+      const award = m.lastAwards ? m.lastAwards[r.seatId] : undefined;
+      return `<tr class="${r.points === lead && lead > 0 ? 'lead' : ''} ${r.seatId === S.you.seatId ? 'me' : ''}"><td>${place}</td><td>${esc(r.name)}${r.seatId === S.you.seatId ? ' <span class="tag you">you</span>' : ''}</td>${m.lastAwards && !compact ? `<td class="num">${award !== undefined ? '+' + fmtPts(award) : ''}</td>` : ''}<td class="num"><strong>${fmtPts(r.points)}</strong></td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
 function rulesHTML() {
   return `<details class="rules panel"><summary>How it plays</summary>
   <div class="rules-cols">
@@ -85,6 +106,7 @@ function rulesHTML() {
       <p>Everyone bids privately on each pile before the timer runs out. The highest bid wins and pays the second-highest bid. Tied top bids are broken at random; if nobody bids above zero, the pile is discarded. Bidding closes early once every bid is in.</p>
       <p>The final pile has no bidding. Going all in is always the best play there (extra cards can't hurt your hand, and leftover coins are worthless), so everyone's whole stack goes in automatically. The biggest stack takes it and pays the second-biggest; ties are a coin flip. Every coin you spend earlier is a coin you won't have for that last pile.</p></div>
     <div><h3>Showdown</h3>
+      <p>In a marathon, the table plays several games in a row with the same seats. After each game, points go by finishing place: 5, 3, 2 and 1 with 4 players; 3, 2 and 1 with 3; 2 and 1 with 2. Players who tie split the points for the places they share. Most points at the end wins.</p>
       <p>Face-down cards stay hidden from everyone, including their owner, until the showdown. Each player then makes their best five-card hand from all the cards they won. Leftover coins don't count.</p></div>
   </div></details>`;
 }
@@ -161,20 +183,23 @@ function renderLobby() {
     box.innerHTML = `<div class="settings-grid">
       <div class="field"><label for="coins">Starting coins</label><input id="coins" type="number" inputmode="numeric" min="${lim.coins[0]}" max="${lim.coins[1]}" value="${st.startCoins}" ${host ? '' : 'disabled'}></div>
       <div class="field"><label for="secs">Seconds per pile</label><input id="secs" type="number" inputmode="numeric" min="${lim.seconds[0]}" max="${lim.seconds[1]}" value="${st.bidSeconds}" ${host ? '' : 'disabled'}></div>
+      <div class="field"><label for="games">Games in a row</label><input id="games" type="number" inputmode="numeric" min="${lim.games[0]}" max="${lim.games[1]}" value="${st.games}" ${host ? '' : 'disabled'}><span class="small muted">1 plays a single game. More starts a marathon.</span></div>
       <div class="field"><label for="maxseats">Seats at the table</label><select id="maxseats" ${host ? '' : 'disabled'}>${Array.from({ length: lim.seats[1] - lim.seats[0] + 1 }, (_, i) => i + lim.seats[0]).map(n => `<option ${n === st.maxSeats ? 'selected' : ''} ${n < S.seats.length ? 'disabled' : ''}>${n}</option>`).join('')}</select></div>
     </div>${host ? '' : '<p class="muted small">Only the host can change these.</p>'}`;
     if (host) {
       $('#coins').onchange = e => sendMsg({ type: 'settings', startCoins: e.target.value });
       $('#secs').onchange = e => sendMsg({ type: 'settings', bidSeconds: e.target.value });
       $('#maxseats').onchange = e => sendMsg({ type: 'settings', maxSeats: e.target.value });
+      $('#games').onchange = e => sendMsg({ type: 'settings', games: e.target.value });
     }
   }
 
   let a = '';
   if (!you.seatId) a += you.kicked ? '<p class="muted">The host removed you from this table. You can still watch.</p>'
     : `<button class="primary" id="sit" ${full ? 'disabled' : ''}>Take a seat</button>${full ? '<p class="muted small">The table is full; you\'re watching.</p>' : ''}`;
-  if (host) a += `<button class="primary big" id="start" ${S.seats.length < 2 ? 'disabled' : ''}>Deal the piles</button>
-    <p class="muted small">${S.seats.length < 2 ? 'Fill at least 2 seats with players or bots to start.' : `Everyone seated gets ${st.startCoins} coins and ${st.bidSeconds} seconds per pile. With ${S.seats.length} players there will be ${pileRange(S.seats.length).lo} to ${pileRange(S.seats.length).hi} piles${S.seats.length >= 3 ? ' of 2 to 7 cards each' : ''}.`}</p>`;
+  const marathonNote = st.games > 1 && S.seats.length >= 2 ? ` This is a ${st.games}-game marathon: ${tableText(S.seats.length === 4 ? [5, 3, 2, 1] : Array.from({ length: S.seats.length }, (_, i) => S.seats.length - i))} each game. Seats are locked until it ends.` : '';
+  if (host) a += `<button class="primary big" id="start" ${S.seats.length < 2 ? 'disabled' : ''}>${st.games > 1 ? `Start the ${st.games}-game marathon` : 'Deal the piles'}</button>
+    <p class="muted small">${S.seats.length < 2 ? 'Fill at least 2 seats with players or bots to start.' : `Everyone seated gets ${st.startCoins} coins and ${st.bidSeconds} seconds per pile. With ${S.seats.length} players there will be ${pileRange(S.seats.length).lo} to ${pileRange(S.seats.length).hi} piles${S.seats.length >= 3 ? ' of 2 to 7 cards each' : ''}.${marathonNote}`}</p>`;
   else a += '<p class="muted small">The host deals once everyone is seated.</p>';
   $('#lobbyactions').innerHTML = a;
   if ($('#sit')) $('#sit').onclick = () => sendMsg({ type: 'sit', name: store.get('ap.name', '') });
@@ -185,7 +210,7 @@ function renderLobby() {
 function renderGame() {
   const g = G(), you = S.you;
   mount('game-' + g.id, `<div class="wrap">
-    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span><span id="pileLabel" class="pill"></span>${you.isHost ? '<button id="abandon">End game</button>' : ''}</div></header>
+    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${S.marathon ? `<span class="pill">Game ${S.marathon.played + 1} of ${S.marathon.total}</span>` : ''}<span id="pileLabel" class="pill"></span>${you.isHost ? `<button id="abandon">${S.marathon ? 'End marathon' : 'End game'}</button>` : ''}</div></header>
     <section class="felt" id="stage"></section>
     <section class="panel" id="bidsWrap">
       <div class="sec-head"><h2 id="bidsTitle">Sealed bids</h2><div class="timer"><span id="timer"></span><small>s</small></div></div>
@@ -194,8 +219,9 @@ function renderGame() {
     </section>
     <section class="panel"><h2>Still to come</h2><div id="upcoming" class="upcoming"></div></section>
     <section class="panel"><h2>Players</h2><div id="players" class="grid"></div></section>
+    ${S.marathon ? `<section class="panel"><div class="sec-head"><h2>Marathon standings</h2><span class="muted">After ${S.marathon.played} of ${S.marathon.total} games</span></div>${standingsHTML(S.marathon, { compact: true })}</section>` : ''}
     ${rulesHTML()}</div>`);
-  if ($('#abandon')) $('#abandon').onclick = () => { if (confirm('End this game for everyone and go back to the lobby?')) sendMsg({ type: 'lobby' }); };
+  if ($('#abandon')) $('#abandon').onclick = () => { if (confirm(S.marathon ? 'End the whole marathon for everyone and go back to the lobby? Points so far will be lost.' : 'End this game for everyone and go back to the lobby?')) sendMsg({ type: 'lobby' }); };
 
   const pile = g.piles[g.idx], up = pile.filter(c => c.up).length, last = g.idx === g.piles.length - 1;
   $('#pileLabel').textContent = `Pile ${g.idx + 1} / ${g.piles.length}`;
@@ -290,20 +316,35 @@ function renderShowdown() {
   const g = G(), you = S.you;
   const res = g.players.map(p => { const cards = cardsOf(p.seatId); return { p, cards, score: score(cards), best: new Set(bestFive(cards)) }; }).sort((a, b) => cmp(b.score, a.score));
   const top = res[0].score, winners = res.filter(r => top[0] >= 0 && cmp(r.score, top) === 0);
-  mount('showdown-' + g.id, `<div class="wrap"><header class="bar"><h1>Auction Poker</h1><span id="conn" class="conn"></span></header>
+  const m = S.marathon;
+  mount('showdown-' + g.id, `<div class="wrap"><header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${m ? `<span class="pill">Game ${m.played} of ${m.total}</span>` : ''}</div></header>
     <section class="felt winner-banner" id="banner"></section>
+    <section class="panel" id="standings" ${m ? '' : 'hidden'} style="margin-top:16px"></section>
     <section class="rank-list" id="ranks" style="margin-top:16px"></section>${rulesHTML()}</div>`);
-  const headline = !winners.length ? 'Nobody won any cards' : winners.length === 1 ? `${esc(winners[0].p.name)} wins` : `Split pot: ${winners.map(w => esc(w.p.name)).join(' and ')}`;
-  $('#banner').innerHTML = `<h2>${headline}</h2><p>${winners.length ? describe(top) : 'Every pile went unclaimed.'}</p>
-    <div class="result"><span></span>${you.isHost ? `<div class="inline"><button class="primary" id="again">Play again</button><button id="tolobby">Change seats or rules</button></div>` : '<span class="muted-felt">Waiting for the host to start another game.</span>'}</div>`;
+  const headline = !winners.length ? 'Nobody won any cards' : winners.length === 1 ? `${esc(winners[0].p.name)} wins${m ? ` game ${m.played}` : ''}` : `Split pot: ${winners.map(w => esc(w.p.name)).join(' and ')}`;
+  let banner, buttons;
+  if (m && m.done) {
+    const best = m.standings[0].points, champs = m.standings.filter(r => r.points === best);
+    banner = `<p class="eyebrow-felt">Marathon over after ${m.total} games</p><h2>${champs.length === 1 ? `${esc(champs[0].name)} wins the marathon` : `Shared title: ${champs.map(c => esc(c.name)).join(' and ')}`}</h2>
+      <p>${fmtPts(best)} points. Last game: ${headline.toLowerCase().startsWith('nobody') ? headline : `${headline}, ${describe(top)}`}.</p>`;
+    buttons = you.isHost ? `<div class="inline"><button class="primary" id="again">New ${m.total}-game marathon</button><button id="tolobby">Change seats or rules</button></div>` : '<span class="muted-felt">Waiting for the host.</span>';
+  } else if (m) {
+    banner = `<h2>${headline}</h2><p>${winners.length ? describe(top) : 'Every pile went unclaimed.'} ${m.total - m.played} game${m.total - m.played === 1 ? '' : 's'} left in the marathon.</p>`;
+    buttons = you.isHost ? `<div class="inline"><button class="primary" id="again">Deal game ${m.played + 1} of ${m.total}</button><button id="tolobby">End marathon</button></div>` : `<span class="muted-felt">Waiting for the host to deal game ${m.played + 1}.</span>`;
+  } else {
+    banner = `<h2>${headline}</h2><p>${winners.length ? describe(top) : 'Every pile went unclaimed.'}</p>`;
+    buttons = you.isHost ? `<div class="inline"><button class="primary" id="again">Play again</button><button id="tolobby">Change seats or rules</button></div>` : '<span class="muted-felt">Waiting for the host to start another game.</span>';
+  }
+  $('#banner').innerHTML = `${banner}<div class="result"><span></span>${buttons}</div>`;
+  if (m) $('#standings').innerHTML = `<div class="sec-head"><h2>${m.done ? 'Final standings' : 'Marathon standings'}</h2><span class="muted">${tableText(m.table)}</span></div>${standingsHTML(m)}`;
   if ($('#again')) $('#again').onclick = () => sendMsg({ type: 'start' });
-  if ($('#tolobby')) $('#tolobby').onclick = () => sendMsg({ type: 'lobby' });
+  if ($('#tolobby')) $('#tolobby').onclick = () => { if (!m || m.done || confirm('End the marathon for everyone? Points so far will be lost.')) sendMsg({ type: 'lobby' }); };
   let place = 0, prev = null;
   $('#ranks').innerHTML = res.map((r, i) => {
     if (!prev || cmp(r.score, prev) !== 0) place = i + 1; prev = r.score;
     return `<div class="panel rank-row ${place === 1 && top[0] >= 0 ? 'first' : ''}"><div class="place">${place}</div>
       <div style="display:grid;gap:8px;min-width:0">
-        <div class="slot-head"><strong>${esc(r.p.name)}</strong>${tags(r.p)}<span class="coins">${r.p.coins} coins left</span></div>
+        <div class="slot-head"><strong>${esc(r.p.name)}</strong>${tags(r.p)}${m && m.lastAwards ? `<span class="tag pts">+${fmtPts(m.lastAwards[r.p.seatId] ?? 0)} ${(m.lastAwards[r.p.seatId] ?? 0) === 1 ? 'pt' : 'pts'}</span>` : ''}<span class="coins">${r.p.coins} coins left</span></div>
         <div class="handname">${describe(r.score)}</div>
         ${wonPiles(r.p.seatId, { mark: c => ({ hi: r.best.has(c) && r.cards.length > 5, dim: !r.best.has(c) }) })}
         <p class="small muted">Won ${r.p.won} pile${r.p.won === 1 ? '' : 's'} for ${r.p.spent} coins total.</p></div></div>`;

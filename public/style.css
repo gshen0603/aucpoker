@@ -188,3 +188,16 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 .reveal{animation:reveal-in .45s ease-out both}
 @keyframes reveal-in{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.reveal{animation:none}}
+
+/* Marathon */
+.standings{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.standings th,.standings td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+.standings th{font-size:.8rem;color:var(--muted);font-weight:600}
+.standings .num{text-align:right}
+.standings tr.lead td{font-weight:700}
+.standings tr.lead td:first-child{color:var(--brass)}
+.standings tr.me{background:color-mix(in srgb,var(--brass) 10%,transparent)}
+.standings.compact th,.standings.compact td{padding:5px 8px}
+.tag.pts{border-color:var(--brass);color:var(--ink);font-weight:700}
+.eyebrow-felt{color:var(--felt-muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+#standings[hidden]{display:none}
