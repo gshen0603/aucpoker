@@ -207,3 +207,80 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 .settings-grid .field{align-content:start;grid-template-rows:auto auto;margin-bottom:0}
 .settings-grid input,.settings-grid select{height:44px;padding-top:0;padding-bottom:0;line-height:44px;box-sizing:border-box}
 .settings-grid select{line-height:normal}
+
+/* Compact game screen: the pile and your bid side by side, one merged player list in a sidebar */
+.wrap.wide{max-width:1320px;padding-top:14px}
+.wrap.wide .bar{margin-bottom:12px}
+.bar h1{white-space:nowrap}
+.gamegrid{display:grid;gap:16px;align-items:start}
+@media (min-width:980px){.gamegrid{grid-template-columns:minmax(0,1fr) minmax(320px,380px)}}
+.gamemain,.gameside{display:grid;gap:16px;min-width:0}
+.gamegrid section+section{margin-top:0}
+.gamemain .felt{padding:18px}
+.felt-grid{display:grid;gap:16px;align-items:start}
+@media (min-width:640px){.felt-grid{grid-template-columns:minmax(0,1fr) minmax(250px,300px)}}
+.felt-grid .stage-head{margin-bottom:12px}
+.felt .stage-note{margin-top:12px;font-size:.92rem}
+#stagefoot:empty{display:none}
+#stagefoot .result{margin-top:14px}
+.bidtray{background:var(--surface);color:var(--ink);border-radius:12px;padding:14px}
+.bidtray[hidden]{display:none}
+.bidtray h2{font-size:1.1rem}
+.bidtray .timer{font-size:1.6rem}
+.bidtray .tbar{margin:8px 0 12px}
+.bidtray .mybid,.bidtray .mybid-form,.bidtray #bidbox>p{margin-bottom:0}
+.bidtray .mybid{padding:10px}
+.bidtray .err:empty{display:none}
+.panel.tight{padding:14px}
+.panel.tight h2{font-size:1.1rem;margin-bottom:10px}
+.panel.tight .sec-head{margin-bottom:10px}
+.panel.tight .sec-head h2{margin:0}
+.plist{display:grid;gap:8px}
+.plist .slot{padding:10px;gap:6px}
+.slot-head .coins,.slot-head .tag,.slot-head .hstatus{white-space:nowrap}
+.slot-head .hstatus{margin-left:auto;font-size:.88rem}
+.slot-head .hstatus+.coins{margin-left:0;padding-left:10px;border-left:1px solid var(--line)}
+.slot-head strong{min-width:0}
+.pline{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px}
+.pline>span:empty{display:none}
+.pstatus{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-left:auto}
+.pstatus .amt{font-size:1.2rem}
+.pstatus .status{font-size:.92rem}
+.pilebox.compact{padding:6px 8px 8px;gap:5px;border-width:1px}
+.pilebox.compact .pilebox-head{font-size:.8rem}
+.slot .pilebox.compact{padding:6px 8px 8px}
+.pilerow{gap:8px}
+#upcoming{gap:10px}
+#upWrap[hidden]{display:none}
+/* One column below the sidebar breakpoint: pile and bid, then players, then what's still to come */
+@media (max-width:979px){
+  .gamemain,.gameside{display:contents}
+  #stageWrap{order:1} #playersWrap{order:2} #upWrap{order:3} #standWrap{order:4}
+}
+@media (max-width:520px){
+  .wrap.wide{padding-top:10px}
+  .wrap.wide .bar{gap:8px}
+  .wrap.wide .bar-right{gap:6px}
+  .wrap.wide .bar .pill,.wrap.wide .bar button{padding:5px 10px;font-size:.9rem}
+  .bar h1{font-size:1.3rem}
+  .gamemain .felt{padding:14px}
+  .gamegrid,.gamemain,.gameside{gap:12px}
+}
+.gamegrid section,.plist>.slot{min-width:0}
+.slot-head strong{flex:0 1 auto}
+@media (max-width:520px){.plist .slot-head{gap:6px}.slot-head .hstatus+.coins{padding-left:6px}.plist .slot-head .coins,.plist .slot-head .hstatus{font-size:.85rem}}
+.slot>*{min-width:0}
+.wflow{display:flex;flex-wrap:wrap;gap:8px 12px}
+.wgroup{display:grid;gap:3px}
+.wlabel{font-size:.75rem;font-weight:600;color:var(--muted)}
+.wcards{display:flex;flex-wrap:wrap;gap:3px;max-width:calc(7 * 32px + 6 * 3px)}
+.wcards .card.sm{width:32px;height:46px}
+.wcards .card.sm .r{font-size:.8rem}.wcards .card.sm .s{font-size:.88rem}
+.gamegrid .panel,.gamegrid .felt{margin-top:0}
+.felt-grid.solo{grid-template-columns:minmax(0,1fr)}
+.slot-head .hstatus .amt{font-size:1.15rem;line-height:1}
+.bar .pill,.bar button{white-space:nowrap}
+@media (min-width:980px){.rank-list{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+.rank-list>.panel+.panel{margin-top:0}
+.rank-row>*{min-width:0}
+.rank-row .slot-head{flex-wrap:wrap}
