@@ -183,7 +183,7 @@ function renderLobby() {
     box.innerHTML = `<div class="settings-grid">
       <div class="field"><label for="coins">Starting coins</label><input id="coins" type="number" inputmode="numeric" min="${lim.coins[0]}" max="${lim.coins[1]}" value="${st.startCoins}" ${host ? '' : 'disabled'}></div>
       <div class="field"><label for="secs">Seconds per pile</label><input id="secs" type="number" inputmode="numeric" min="${lim.seconds[0]}" max="${lim.seconds[1]}" value="${st.bidSeconds}" ${host ? '' : 'disabled'}></div>
-      <div class="field"><label for="games">Games in a row</label><input id="games" type="number" inputmode="numeric" min="${lim.games[0]}" max="${lim.games[1]}" value="${st.games}" ${host ? '' : 'disabled'}><span class="small muted">1 plays a single game. More starts a marathon.</span></div>
+      <div class="field"><label for="games">Games in a row</label><input id="games" type="number" inputmode="numeric" min="${lim.games[0]}" max="${lim.games[1]}" value="${st.games}" ${host ? '' : 'disabled'} title="1 plays a single game. More starts a marathon."></div>
       <div class="field"><label for="maxseats">Seats at the table</label><select id="maxseats" ${host ? '' : 'disabled'}>${Array.from({ length: lim.seats[1] - lim.seats[0] + 1 }, (_, i) => i + lim.seats[0]).map(n => `<option ${n === st.maxSeats ? 'selected' : ''} ${n < S.seats.length ? 'disabled' : ''}>${n}</option>`).join('')}</select></div>
     </div>${host ? '' : '<p class="muted small">Only the host can change these.</p>'}`;
     if (host) {

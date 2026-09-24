@@ -201,3 +201,9 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 .tag.pts{border-color:var(--brass);color:var(--ink);font-weight:700}
 .eyebrow-felt{color:var(--felt-muted);font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
 #standings[hidden]{display:none}
+
+/* Table rules: keep every label and box on the same line and the same height */
+.settings-grid{align-items:start}
+.settings-grid .field{align-content:start;grid-template-rows:auto auto;margin-bottom:0}
+.settings-grid input,.settings-grid select{height:44px;padding-top:0;padding-bottom:0;line-height:44px;box-sizing:border-box}
+.settings-grid select{line-height:normal}
