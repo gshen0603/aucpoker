@@ -280,14 +280,15 @@ function renderGame() {
 
   // Your bid (keyed so updates don't wipe a half-typed number)
   const me = you.seatId ? pl(you.seatId) : null;
-  const key = [g.id, g.idx, g.status, !!me, g.myBid, me ? me.coins : ''].join('|');
+  const key = [g.id, g.idx, g.status, !!me, g.myBid, me ? me.coins : '', g.myAutoAllIn].join('|');
   const box = $('#bidbox');
   if (box.dataset.key !== key) {
     box.dataset.key = key;
     if (g.status !== 'bidding') box.innerHTML = '';
     else if (!me) box.innerHTML = '<p class="muted">You\'re watching this game. You can take a seat in the lobby before the next one.</p>';
     else if (me.coins <= 0) box.innerHTML = '<p class="muted">You\'re out of coins, so you sit this pile out.</p>';
-    else if (g.myBid !== null) box.innerHTML = `<div class="mybid"><span class="status ok">${g.myAutoAllIn && g.myBid === me.coins ? '✓ Auto all-in' : '✓ Locked'}</span><span class="amt">${g.myBid}</span><span class="muted">coins, sealed until bidding closes</span></div>`;
+    else if (g.myBid === null && g.myAutoAllIn) box.innerHTML = `<div class="mybid"><span class="status ok">Auto all-in</span><span class="amt">${me.coins}</span><span class="muted">coins go in when bidding closes. Untick Auto all-in to bid yourself.</span></div>`;
+    else if (g.myBid !== null) box.innerHTML = `<div class="mybid"><span class="status ok">✓ Locked</span><span class="amt">${g.myBid}</span><span class="muted">coins, sealed until bidding closes</span></div>`;
     else {
       box.innerHTML = `<div class="mybid-form"><label for="bidin" class="small muted">You have ${me.coins} coins</label>
         <div class="bid-input"><input id="bidin" type="text" inputmode="numeric" autocomplete="off" placeholder="0 to ${me.coins}"><button class="primary" id="bidbtn">Lock bid</button></div>
@@ -304,12 +305,12 @@ function renderGame() {
     }
   }
 
-  // Auto all-in: bids your whole stack the moment each pile opens. Off by default for every game.
+  // Auto all-in: your whole stack goes in when bidding closes, unless you lock a bid yourself. Off by default for every game.
   // Shown during reveals too, so it can be turned off before the next pile opens.
   const auto = $('#autobox'), autoKey = [g.id, !!me, me ? me.coins > 0 : '', last, g.myAutoAllIn].join('|');
   if (auto.dataset.key !== autoKey) {
     auto.dataset.key = autoKey;
-    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><span><strong>Auto all-in</strong> <span class="muted-felt">Bid my whole stack on every pile as soon as it opens.</span></span></label>` : '';
+    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><span><strong>Auto all-in</strong> <span class="muted-felt">Bid my whole stack on every pile. Nothing is locked: you can switch it off until bidding closes.</span></span></label>` : '';
     if ($('#autoin')) $('#autoin').onchange = e => sendMsg({ type: 'autoAllIn', on: e.target.checked });
   }
 
@@ -335,7 +336,7 @@ function renderGame() {
       status = win ? `<span class="status ok">${r.auto ? 'Takes the final pile' : 'Wins'}, pays ${r.price}</span>` : '';
     }
     const reveal = held && rank >= 0, b = r ? order[rank] : null;
-    const head = !r ? `<span class="hstatus status ${sub.has(p.seatId) ? 'ok' : ''}">${p.coins <= 0 ? 'Out of coins' : sub.has(p.seatId) ? '✓ Locked' : 'Deciding…'}</span>`
+    const head = !r ? `<span class="hstatus status ${sub.has(p.seatId) ? 'ok' : ''}">${p.coins <= 0 ? 'Out of coins' : isMe && g.myAutoAllIn && g.myBid === null ? 'Auto all-in' : sub.has(p.seatId) ? '✓ Locked' : 'Deciding…'}</span>`
       : `<span class="hstatus ${reveal ? 'reveal' : ''}" ${reveal ? revealDelay(rank * 600) : ''}>${b ? `<span class="amt">${b.amt}</span> <span class="muted">${r.auto ? 'all in' : r.timedOut.includes(b.pid) ? 'no bid in time' : 'bid'}</span>` : '<span class="muted">no bid</span>'}</span>`;
     return `<div class="slot player ${isMe ? 'me' : ''} ${win ? 'win' : ''}"><div class="slot-head"><strong>${esc(p.name)}</strong>${tags(p, true)}${head}${r && r.auto ? '' : `<span class="coins">${p.coins} coins</span>`}</div>
       ${label || status ? `<div class="pline"><span class="small ${isMe ? '' : 'muted'}">${label}</span><div class="pstatus">${status}</div></div>` : ''}

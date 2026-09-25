@@ -97,7 +97,7 @@ function view(room, clientId) {
       // Face-down cards are hidden from everyone except the player who bought that pile.
       piles: maskedPiles(g, reveal ? null : (seat ? seat.id : undefined), reveal),
       owners: g.owners, players: g.players,
-      submitted: Object.keys(g.bids),
+      submitted: g.players.filter(p => isIn(g, p)).map(p => p.seatId),
       myBid: seat && g.bids[seat.id] !== undefined ? g.bids[seat.id] : null,
       myAutoAllIn: !!(seat && g.autoAllIn[seat.id]),
       msLeft: g.status === 'bidding' ? Math.max(0, g.endsAt - Date.now()) : 0,
@@ -162,7 +162,9 @@ function startGame(room) {
     piles: P.dealPiles(room.seats.length), owners: [],
     players: room.seats.map(s => ({ seatId: s.id, name: s.name, bot: s.bot, coins: startCoins, won: 0, spent: 0 })),
     bids: {}, result: null, botTimers: [],
-    // Seats that asked to bid their whole stack on every pile. Private: coins are public, so this would reveal the bid.
+    // Seats that want their whole stack bid on every pile. It's a standing instruction, not a locked bid:
+    // the stack only goes in when bidding closes, so it can be switched off until then.
+    // Private: coins are public, so this would reveal the bid.
     autoAllIn: {},
   };
   room.game.owners = room.game.piles.map(() => null);
@@ -181,7 +183,6 @@ function startRound(room) {
   g.endsAt = Date.now() + g.bidSeconds * 1000;
   for (const p of g.players) {
     if (p.coins <= 0) g.bids[p.seatId] = 0;
-    else if (g.autoAllIn[p.seatId]) g.bids[p.seatId] = p.coins;
   }
   g.roundTimer = setTimeout(() => resolveRound(room), g.bidSeconds * 1000);
   const maxDelay = Math.min(8000, g.bidSeconds * 400);
@@ -194,13 +195,16 @@ function startRound(room) {
     }, 1200 + Math.random() * (maxDelay - 1200));
     g.botTimers.push(t);
   }
-  if (g.players.every(p => g.bids[p.seatId] !== undefined)) { resolveRound(room); return; }
+  if (g.players.every(p => isIn(g, p))) { resolveRound(room); return; }
   broadcast(room);
 }
 
+// A player is "in" for this pile once they've locked a bid or have auto all-in on.
+// Bidding closes early when everyone is in.
+const isIn = (g, p) => g.bids[p.seatId] !== undefined || (!!g.autoAllIn[p.seatId] && p.coins > 0);
 function afterBid(room) {
   const g = room.game;
-  if (g.players.every(p => g.bids[p.seatId] !== undefined)) resolveRound(room);
+  if (g.players.every(p => isIn(g, p))) resolveRound(room);
   else broadcast(room);
 }
 
@@ -208,14 +212,15 @@ function resolveRound(room) {
   const g = room.game;
   if (!g || g.status !== 'bidding') return;
   clearGameTimers(g);
-  const bids = g.players.map(p => ({ pid: p.seatId, amt: g.bids[p.seatId] ?? 0 }));
+  // A locked bid counts as is; otherwise auto all-in puts the whole stack in now, at the close.
+  const bids = g.players.map(p => ({ pid: p.seatId, amt: g.bids[p.seatId] ?? (g.autoAllIn[p.seatId] ? p.coins : 0) }));
   const r = P.resolveAuction(bids);
   if (r.winner !== null) {
     const w = g.players.find(p => p.seatId === r.winner);
     w.coins -= r.price; w.spent += r.price; w.won += 1;
     g.owners[g.idx] = r.winner;
   }
-  g.result = { ...r, bids, timedOut: g.players.filter(p => g.bids[p.seatId] === undefined).map(p => p.seatId) };
+  g.result = { ...r, bids, timedOut: g.players.filter(p => !isIn(g, p)).map(p => p.seatId) };
   g.status = 'result';
   const ms = room.settings.revealSeconds * 1000;
   g.nextAt = Date.now() + ms;
@@ -354,8 +359,9 @@ wss.on('connection', ws => {
         const p = g.players.find(x => x.seatId === seat.id);
         if (!p) return;
         if (m.on) g.autoAllIn[seat.id] = true; else delete g.autoAllIn[seat.id];
-        // Turning it on mid-pile locks in the whole stack right away, unless a bid is already in.
-        if (m.on && g.status === 'bidding' && g.bids[seat.id] === undefined && p.coins > 0) { g.bids[seat.id] = p.coins; afterBid(room); return; }
+        // Nothing is locked: the stack goes in when bidding closes. Turning it on can still close bidding
+        // early if that makes everyone in.
+        if (g.status === 'bidding') { afterBid(room); return; }
         break;
       }
       case 'next': if (isHost && g && g.status === 'result') advance(room); return;
