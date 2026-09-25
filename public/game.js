@@ -34,7 +34,7 @@
     if (players >= 4) return { lo: 6, hi: 8 };
     return { lo: Math.max(players + 1, Math.ceil(deckSize(players) / sizeLimits(players).max)), hi: 7 };
   }
-  // Each card face up with p=0.5. Re-deal until no quads or straight flush among ALL face-up cards,
+  // Each card face up with p=0.6. Re-deal until no quads or straight flush among ALL face-up cards,
   // and none inside any single pile.
   function pileCountFor(players) {
     const { lo, hi } = pileRange(players);
@@ -67,7 +67,7 @@
     const n = pileCountFor(players), lim = sizeLimits(players);
     for (let attempt = 1; attempt <= 200000; attempt++) {
       const deck = shuffle(makeDeck(players));
-      deck.forEach(c => { c.up = Math.random() < 0.5; });
+      deck.forEach(c => { c.up = Math.random() < 0.6; });
       if (isForbidden(deck.filter(c => c.up))) continue;
       const piles = []; let prev = 0;
       for (const size of pileSizes(n, deck.length, lim)) { piles.push(deck.slice(prev, prev + size)); prev += size; }
