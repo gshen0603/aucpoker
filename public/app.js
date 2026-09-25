@@ -264,7 +264,7 @@ function renderGame() {
       ? `<strong>${esc(pl(r.winner).name)}</strong> has the biggest stack${r.tie ? ' (tied, won on a coin flip)' : ''} and takes the final pile, paying ${r.price} coin${r.price === 1 ? '' : 's'}.`
       : r.winner === null ? 'Nobody bid, so this pile is discarded.'
       : `<strong>${esc(pl(r.winner).name)}</strong> wins the pile${r.tie ? ' on a random tiebreak' : ''} and pays ${r.price} coin${r.price === 1 ? '' : 's'}.`;
-    foot = `${r.auto ? '<p class="stage-note">Everyone\'s all in. Stacks are revealed from smallest to biggest.</p>' : ''}<div class="result ${r.auto ? 'reveal' : ''}" ${r.auto ? revealDelay(n * 600 + 200) : ''}><p>${msg}</p><div class="inline" style="align-items:center"><span class="muted-felt" id="nextin"></span>${you.isHost ? `<button class="primary" id="next">${last ? 'Go to showdown' : 'Next pile now'}</button>` : ''}</div></div>`;
+    foot = `<div class="result ${r.auto ? 'reveal' : ''}" ${r.auto ? revealDelay(n * 600 + 200) : ''}><p>${msg}</p><div class="inline" style="align-items:center"><span class="muted-felt" id="nextin"></span>${you.isHost ? `<button class="primary" id="next">${last ? 'Go to showdown' : 'Next pile now'}</button>` : ''}</div></div>`;
   }
   // Only rebuild the stage when it actually changes, so the final reveal doesn't replay.
   const stageKey = [g.id, g.idx, g.status].join('|');
@@ -287,7 +287,7 @@ function renderGame() {
     if (g.status !== 'bidding') box.innerHTML = '';
     else if (!me) box.innerHTML = '<p class="muted">You\'re watching this game. You can take a seat in the lobby before the next one.</p>';
     else if (me.coins <= 0) box.innerHTML = '<p class="muted">You\'re out of coins, so you sit this pile out.</p>';
-    else if (g.myBid === null && g.myAutoAllIn) box.innerHTML = `<div class="mybid"><span class="status ok">Auto all-in</span><span class="amt">${me.coins}</span><span class="muted">coins go in when bidding closes. Untick Auto all-in to bid yourself.</span></div>`;
+    else if (g.myBid === null && g.myAutoAllIn) box.innerHTML = `<div class="mybid"><span class="status ok">Auto all-in</span><span class="amt">${me.coins}</span><span class="muted">coins</span></div>`;
     else if (g.myBid !== null) box.innerHTML = `<div class="mybid"><span class="status ok">✓ Locked</span><span class="amt">${g.myBid}</span><span class="muted">coins, sealed until bidding closes</span></div>`;
     else {
       box.innerHTML = `<div class="mybid-form"><label for="bidin" class="small muted">You have ${me.coins} coins</label>
@@ -310,7 +310,7 @@ function renderGame() {
   const auto = $('#autobox'), autoKey = [g.id, !!me, me ? me.coins > 0 : '', last, g.myAutoAllIn].join('|');
   if (auto.dataset.key !== autoKey) {
     auto.dataset.key = autoKey;
-    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><span><strong>Auto all-in</strong> <span class="muted-felt">Bid my whole stack on every pile. Nothing is locked: you can switch it off until bidding closes.</span></span></label>` : '';
+    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><strong>Auto all-in</strong></label>` : '';
     if ($('#autoin')) $('#autoin').onchange = e => sendMsg({ type: 'autoAllIn', on: e.target.checked });
   }
 
@@ -325,9 +325,7 @@ function renderGame() {
     const hold = held && p.seatId === r.winner;
     const cards = hold ? pilesOf(p.seatId).filter(x => x.i !== g.idx).flatMap(x => x.cards) : cardsOf(p.seatId), vis = cards.filter(c => c.up), hidden = cards.length - vis.length;
     const isMe = p.seatId === you.seatId;
-    const label = isMe && cards.length
-      ? `Your hand: ${describe(score(cards))}${hidden ? `. Others see ${vis.length ? describe(score(vis)).toLowerCase() : 'nothing'} plus ${hidden} hidden.` : ''}`
-      : cards.length ? `Showing: ${vis.length ? describe(score(vis)) : 'nothing'}${hidden ? `, plus ${hidden} hidden` : ''}` : '';
+    const label = isMe && cards.length ? describe(score(cards)) : '';
     let status, win = false, rank = -1;
     if (!r) status = '';
     else {
@@ -348,7 +346,7 @@ function renderGame() {
 
   const rest = g.piles.slice(g.idx + 1);
   $('#upWrap').hidden = !rest.length;
-  $('#upcoming').innerHTML = rest.map((p, i) => { const fin = g.idx + 1 + i === g.piles.length - 1; return pileBox(`Pile ${g.idx + 2 + i}${fin ? ', final' : ''}`, p, { small: true, compact: true, maxCols: 7, final: fin, note: fin ? 'No bidding. Goes to the biggest coin stack.' : '' }); }).join('');
+  $('#upcoming').innerHTML = rest.map((p, i) => { const fin = g.idx + 1 + i === g.piles.length - 1; return pileBox(`Pile ${g.idx + 2 + i}${fin ? ', final' : ''}`, p, { small: true, compact: true, maxCols: 7, final: fin }); }).join('');
   tick();
 }
 
