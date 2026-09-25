@@ -284,3 +284,14 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 .rank-list>.panel+.panel{margin-top:0}
 .rank-row>*{min-width:0}
 .rank-row .slot-head{flex-wrap:wrap}
+
+/* Theme picker */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.theme-select{padding:6px 8px;font-size:.88rem;font-weight:600;border-radius:999px;background:var(--surface);cursor:pointer}
+.bar-right{flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:520px){.wrap.wide .bar .theme-select{padding:4px 6px;font-size:.85rem}}
+/* The current pile can have 7 cards: let them wrap on narrow screens instead of overflowing */
+#stage{min-width:0}
+@media (max-width:520px){.stage-cards .pilegrid{display:flex;flex-wrap:wrap}}
+.home-grid section+section{margin-top:0}
