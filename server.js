@@ -11,7 +11,7 @@ const { botBid } = require('./bots.js');
 
 const PORT = process.env.PORT || 3000;
 const PUB = path.join(__dirname, 'public');
-const LIMITS = { coins: [10, 1000], seconds: [10, 120], seats: [2, 4], games: [1, 20] };
+const LIMITS = { seconds: [10, 120], seats: [2, 4], games: [1, 20] };
 const DEFAULTS = { startCoins: 100, bidSeconds: 30, maxSeats: 4, revealSeconds: 6, games: 1 };
 const BOT_LEVELS = ['easy', 'normal', 'hard'];
 const BOT_NAMES = ['Ada', 'Blaise', 'Cardano', 'Durbin', 'Erdős', 'Fermat', 'Gauss', 'Huygens', 'Kelly', 'Nash', 'Thorp', 'Vickrey'];
@@ -99,6 +99,7 @@ function view(room, clientId) {
       owners: g.owners, players: g.players,
       submitted: Object.keys(g.bids),
       myBid: seat && g.bids[seat.id] !== undefined ? g.bids[seat.id] : null,
+      myAutoAllIn: !!(seat && g.autoAllIn[seat.id]),
       msLeft: g.status === 'bidding' ? Math.max(0, g.endsAt - Date.now()) : 0,
       nextIn: g.status === 'result' ? Math.max(0, g.nextAt - Date.now()) : 0,
       result: g.result,
@@ -161,6 +162,8 @@ function startGame(room) {
     piles: P.dealPiles(room.seats.length), owners: [],
     players: room.seats.map(s => ({ seatId: s.id, name: s.name, bot: s.bot, coins: startCoins, won: 0, spent: 0 })),
     bids: {}, result: null, botTimers: [],
+    // Seats that asked to bid their whole stack on every pile. Private: coins are public, so this would reveal the bid.
+    autoAllIn: {},
   };
   room.game.owners = room.game.piles.map(() => null);
   startRound(room);
@@ -176,7 +179,10 @@ function startRound(room) {
   if (g.idx === g.piles.length - 1) { finalPile(room); return; }
   g.status = 'bidding'; g.bids = {}; g.result = null;
   g.endsAt = Date.now() + g.bidSeconds * 1000;
-  for (const p of g.players) if (p.coins <= 0) g.bids[p.seatId] = 0;
+  for (const p of g.players) {
+    if (p.coins <= 0) g.bids[p.seatId] = 0;
+    else if (g.autoAllIn[p.seatId]) g.bids[p.seatId] = p.coins;
+  }
   g.roundTimer = setTimeout(() => resolveRound(room), g.bidSeconds * 1000);
   const maxDelay = Math.min(8000, g.bidSeconds * 400);
   for (const p of g.players) {
@@ -188,6 +194,7 @@ function startRound(room) {
     }, 1200 + Math.random() * (maxDelay - 1200));
     g.botTimers.push(t);
   }
+  if (g.players.every(p => g.bids[p.seatId] !== undefined)) { resolveRound(room); return; }
   broadcast(room);
 }
 
@@ -306,7 +313,6 @@ wss.on('connection', ws => {
         if (!isHost || !inLobby) return;
         const s = room.settings;
         if (m.games !== undefined) s.games = clamp(m.games, LIMITS.games);
-        if (m.startCoins !== undefined) s.startCoins = clamp(m.startCoins, LIMITS.coins);
         if (m.bidSeconds !== undefined) s.bidSeconds = clamp(m.bidSeconds, LIMITS.seconds);
         if (m.maxSeats !== undefined) s.maxSeats = Math.max(room.seats.length, clamp(m.maxSeats, LIMITS.seats));
         break;
@@ -342,6 +348,15 @@ wss.on('connection', ws => {
         if (!Number.isInteger(n) || n < 0 || n > p.coins) { toast(ws, `Bid a whole number from 0 to ${p.coins}.`); return; }
         g.bids[seat.id] = n;
         afterBid(room); return;
+      }
+      case 'autoAllIn': {
+        if (!g || g.status === 'showdown' || !seat) return;
+        const p = g.players.find(x => x.seatId === seat.id);
+        if (!p) return;
+        if (m.on) g.autoAllIn[seat.id] = true; else delete g.autoAllIn[seat.id];
+        // Turning it on mid-pile locks in the whole stack right away, unless a bid is already in.
+        if (m.on && g.status === 'bidding' && g.bids[seat.id] === undefined && p.coins > 0) { g.bids[seat.id] = p.coins; afterBid(room); return; }
+        break;
       }
       case 'next': if (isHost && g && g.status === 'result') advance(room); return;
       case 'lobby': if (isHost && (g || room.marathon)) { clearGameTimers(g); room.game = null; room.marathon = null; } break;

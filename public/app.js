@@ -119,7 +119,7 @@ function rulesHTML() {
     <div><h3>Hand ranks, high to low</h3><ol>${[8, 7, 6, 5, 4, 3, 2, 1, 0].map(i => `<li>${CAT_NAME[i]}</li>`).join('')}</ol>
       <p>The only straights are 9 to K and 10 to A, plus 8 to Q in the 4-player deck. Aces are high only, so A‑9‑10‑J‑Q is not a straight.</p></div>
     <div><h3>The deck and the deal</h3>
-      <p>With 2 or 3 players the deck is 9 through A (24 cards); with 4 players it's 8 through A (28 cards). The cards are split at random into piles: 3 to 7 piles with 2 players, 4 to 7 with 3, and 6 to 8 with 4. With 3 or 4 players, every pile has 2 to 7 cards, and each card lands face up or face down with even odds.</p>
+      <p>With 2 or 3 players the deck is 9 through A (24 cards); with 4 players it's 8 through A (28 cards). The cards are split at random into piles: 3 to 7 piles with 2 players, 4 to 7 with 3, and 6 to 8 with 4. With 3 or 4 players, every pile has 2 to 7 cards, and each card has a 60% chance of landing face up.</p>
       <p>The deal is redone until no straight flush or four of a kind shows among all face-up cards, and none sits inside any single pile.</p></div>
     <div><h3>Bidding</h3>
       <p>Everyone bids privately on each pile before the timer runs out. The highest bid wins and pays the second-highest bid. Tied top bids are broken at random; if nobody bids above zero, the pile is discarded. Bidding closes early once every bid is in.</p>
@@ -200,13 +200,11 @@ function renderLobby() {
   const box = $('#settings');
   if (!box.contains(document.activeElement)) {
     box.innerHTML = `<div class="settings-grid">
-      <div class="field"><label for="coins">Starting coins</label><input id="coins" type="number" inputmode="numeric" min="${lim.coins[0]}" max="${lim.coins[1]}" value="${st.startCoins}" ${host ? '' : 'disabled'}></div>
       <div class="field"><label for="secs">Seconds per pile</label><input id="secs" type="number" inputmode="numeric" min="${lim.seconds[0]}" max="${lim.seconds[1]}" value="${st.bidSeconds}" ${host ? '' : 'disabled'}></div>
       <div class="field"><label for="games">Games in a row</label><input id="games" type="number" inputmode="numeric" min="${lim.games[0]}" max="${lim.games[1]}" value="${st.games}" ${host ? '' : 'disabled'} title="1 plays a single game. More starts a marathon."></div>
       <div class="field"><label for="maxseats">Seats at the table</label><select id="maxseats" ${host ? '' : 'disabled'}>${Array.from({ length: lim.seats[1] - lim.seats[0] + 1 }, (_, i) => i + lim.seats[0]).map(n => `<option ${n === st.maxSeats ? 'selected' : ''} ${n < S.seats.length ? 'disabled' : ''}>${n}</option>`).join('')}</select></div>
     </div>${host ? '' : '<p class="muted small">Only the host can change these.</p>'}`;
     if (host) {
-      $('#coins').onchange = e => sendMsg({ type: 'settings', startCoins: e.target.value });
       $('#secs').onchange = e => sendMsg({ type: 'settings', bidSeconds: e.target.value });
       $('#maxseats').onchange = e => sendMsg({ type: 'settings', maxSeats: e.target.value });
       $('#games').onchange = e => sendMsg({ type: 'settings', games: e.target.value });
@@ -241,6 +239,7 @@ function renderGame() {
               <div id="bidbox"></div>
             </div></div>
           <div id="stagefoot"></div>
+          <div id="autobox"></div>
         </section>
         <section class="panel tight" id="upWrap"><h2>Still to come</h2><div id="upcoming" class="upcoming"></div></section>
       </div>
@@ -288,7 +287,7 @@ function renderGame() {
     if (g.status !== 'bidding') box.innerHTML = '';
     else if (!me) box.innerHTML = '<p class="muted">You\'re watching this game. You can take a seat in the lobby before the next one.</p>';
     else if (me.coins <= 0) box.innerHTML = '<p class="muted">You\'re out of coins, so you sit this pile out.</p>';
-    else if (g.myBid !== null) box.innerHTML = `<div class="mybid"><span class="status ok">✓ Locked</span><span class="amt">${g.myBid}</span><span class="muted">coins, sealed until bidding closes</span></div>`;
+    else if (g.myBid !== null) box.innerHTML = `<div class="mybid"><span class="status ok">${g.myAutoAllIn && g.myBid === me.coins ? '✓ Auto all-in' : '✓ Locked'}</span><span class="amt">${g.myBid}</span><span class="muted">coins, sealed until bidding closes</span></div>`;
     else {
       box.innerHTML = `<div class="mybid-form"><label for="bidin" class="small muted">You have ${me.coins} coins</label>
         <div class="bid-input"><input id="bidin" type="text" inputmode="numeric" autocomplete="off" placeholder="0 to ${me.coins}"><button class="primary" id="bidbtn">Lock bid</button></div>
@@ -303,6 +302,15 @@ function renderGame() {
       $('#bidin').onkeydown = e => { if (e.key === 'Enter') submit(); };
       $('#bidin').focus({ preventScroll: true });
     }
+  }
+
+  // Auto all-in: bids your whole stack the moment each pile opens. Off by default for every game.
+  // Shown during reveals too, so it can be turned off before the next pile opens.
+  const auto = $('#autobox'), autoKey = [g.id, !!me, me ? me.coins > 0 : '', last, g.myAutoAllIn].join('|');
+  if (auto.dataset.key !== autoKey) {
+    auto.dataset.key = autoKey;
+    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><span><strong>Auto all-in</strong> <span class="muted-felt">Bid my whole stack on every pile as soon as it opens.</span></span></label>` : '';
+    if ($('#autoin')) $('#autoin').onchange = e => sendMsg({ type: 'autoAllIn', on: e.target.checked });
   }
 
   // Players: one row each with coins, this pile's bid status or revealed bid, and the piles they've won.

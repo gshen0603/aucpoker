@@ -295,3 +295,7 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 #stage{min-width:0}
 @media (max-width:520px){.stage-cards .pilegrid{display:flex;flex-wrap:wrap}}
 .home-grid section+section{margin-top:0}
+/* Auto all-in toggle, on the felt under the pile */
+#autobox:empty{display:none}
+.autoallin{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);cursor:pointer;font-size:.92rem;line-height:1.35}
+.autoallin input{width:18px;height:18px;margin:1px 0 0;flex:none;accent-color:var(--brass)}
