@@ -62,7 +62,7 @@ function deckPicker() {
   const d = store.get('ap.deck', 'two');
   return `<label class="theme-pick"><span class="sr-only">Deck colors</span><select class="deck-select" aria-label="Deck colors">${[['two', '2-color deck'], ['four', '4-color deck']].map(([v, l]) => `<option value="${v}" ${v === d ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
 }
-const prefPickers = () => themePicker() + deckPicker();
+const prefPickers = () => deckPicker() + themePicker(); // theme last: always the rightmost
 document.addEventListener('change', e => {
   if (e.target.matches('.theme-select')) {
     store.set('ap.theme', e.target.value); applyTheme(e.target.value);
@@ -148,7 +148,7 @@ function renderHome(msg) {
   const urlCode = new URLSearchParams(location.search).get('room') || '';
   $('#app').innerHTML = `<div class="wrap">
     <header class="hero">
-      <div class="hero-top"><div class="suits" aria-hidden="true">♠<span class="r">♥</span>♣<span class="r">♦</span></div>${prefPickers()}</div>
+      <div class="hero-top"><div class="suits" aria-hidden="true">♠<span class="r">♥</span>♣<span class="r">♦</span></div><div class="prefs">${prefPickers()}</div></div>
       <h1>Auction Poker</h1>
       <p>Bid on piles of cards in sealed second-price auctions, then build the strongest five-card hand from everything you bought. Flushes outrank four of a kind.</p>
       <span id="conn" class="conn"></span>
@@ -183,7 +183,7 @@ function render() {
 function renderLobby() {
   const you = S.you, host = you.isHost, st = S.settings, lim = S.limits;
   mount('lobby-' + S.code, `<div class="wrap">
-    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${prefPickers()}<button id="leave">Leave table</button></div></header>
+    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span><button id="leave">Leave table</button></div><div class="prefs">${prefPickers()}</div></header>
     <section class="panel roomhead"><div><p class="muted small">Table code</p><div class="roomcode">${esc(S.code)}</div></div>
       <div class="inline"><button id="copy">Copy invite link</button></div></section>
     <section class="panel"><div class="sec-head"><h2>Seats</h2><span id="seatcount" class="muted"></span></div><div id="seats" class="seatrows"></div><div id="addbot"></div></section>
@@ -240,7 +240,7 @@ let playersHTML = '', finalRevealAt = 0;
 function renderGame() {
   const g = G(), you = S.you;
   if (mount('game-' + g.id, `<div class="wrap wide">
-    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${prefPickers()}${S.marathon ? `<span class="pill">Game ${S.marathon.played + 1} of ${S.marathon.total}</span>` : ''}<span id="pileLabel" class="pill"></span>${you.isHost ? `<button id="abandon">${S.marathon ? 'End marathon' : 'End game'}</button>` : ''}</div></header>
+    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${S.marathon ? `<span class="pill">Game ${S.marathon.played + 1} of ${S.marathon.total}</span>` : ''}<span id="pileLabel" class="pill"></span>${you.isHost ? `<button id="abandon">${S.marathon ? 'End marathon' : 'End game'}</button>` : ''}</div><div class="prefs">${prefPickers()}</div></header>
     <div class="gamegrid">
       <div class="gamemain">
         <section class="felt" id="stageWrap">
@@ -367,7 +367,7 @@ function renderShowdown() {
   const res = g.players.map(p => { const cards = cardsOf(p.seatId); return { p, cards, score: score(cards), best: new Set(bestFive(cards)) }; }).sort((a, b) => cmp(b.score, a.score));
   const top = res[0].score, winners = res.filter(r => top[0] >= 0 && cmp(r.score, top) === 0);
   const m = S.marathon;
-  mount('showdown-' + g.id, `<div class="wrap"><header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${prefPickers()}${m ? `<span class="pill">Game ${m.played} of ${m.total}</span>` : ''}</div></header>
+  mount('showdown-' + g.id, `<div class="wrap"><header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${m ? `<span class="pill">Game ${m.played} of ${m.total}</span>` : ''}</div><div class="prefs">${prefPickers()}</div></header>
     <section class="felt winner-banner" id="banner"></section>
     <section class="panel" id="standings" ${m ? '' : 'hidden'} style="margin-top:16px"></section>
     <section class="rank-list" id="ranks" style="margin-top:16px"></section>${rulesHTML()}</div>`);

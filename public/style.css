@@ -309,3 +309,15 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 :root[data-deck="four"] .card.private{background:repeating-linear-gradient(135deg,var(--suit) 0 6px,color-mix(in srgb,var(--suit) 82%,#fff) 6px 12px)}
 :root[data-deck="four"] .card:not(.back):not(.private){box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 1px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.22)}
 :root[data-deck="four"] .card.sm:not(.back):not(.private){box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 1px 0 rgba(0,0,0,.2),0 2px 5px rgba(0,0,0,.15)}
+
+/* Display pickers: deck then theme, always together at the top right */
+.prefs{display:flex;gap:10px;align-items:center;flex:none}
+.bar .bar-right{margin-left:auto}
+.bar .prefs{order:2}
+/* When the header gets tight, the title and pickers share the top row and the game buttons drop below */
+@media (max-width:760px){
+  .bar .prefs{order:1;margin-left:auto}
+  .bar .bar-right{order:2;flex-basis:100%;justify-content:flex-end}
+  .bar .bar-right:not(:has(:not(.conn:empty))){display:none}
+}
+@media (max-width:520px){.prefs{gap:6px}.bar .prefs select,.hero-top .prefs select{padding:4px 6px;font-size:.85rem}}
