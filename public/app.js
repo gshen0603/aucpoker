@@ -323,7 +323,7 @@ function renderGame() {
   const held = r && r.auto && Date.now() < finalRevealAt;
   const html = g.players.map(p => {
     const hold = held && p.seatId === r.winner;
-    const cards = hold ? pilesOf(p.seatId).filter(x => x.i !== g.idx).flatMap(x => x.cards) : cardsOf(p.seatId), vis = cards.filter(c => c.up), hidden = cards.length - vis.length;
+    const cards = hold ? pilesOf(p.seatId).filter(x => x.i !== g.idx).flatMap(x => x.cards) : cardsOf(p.seatId);
     const isMe = p.seatId === you.seatId;
     const label = isMe && cards.length ? describe(score(cards)) : '';
     let status, win = false, rank = -1;
@@ -338,8 +338,7 @@ function renderGame() {
       : `<span class="hstatus ${reveal ? 'reveal' : ''}" ${reveal ? revealDelay(rank * 600) : ''}>${b ? `<span class="amt">${b.amt}</span> <span class="muted">${r.auto ? 'all in' : r.timedOut.includes(b.pid) ? 'no bid in time' : 'bid'}</span>` : '<span class="muted">no bid</span>'}</span>`;
     return `<div class="slot player ${isMe ? 'me' : ''} ${win ? 'win' : ''}"><div class="slot-head"><strong>${esc(p.name)}</strong>${tags(p, true)}${head}${r && r.auto ? '' : `<span class="coins">${p.coins} coins</span>`}</div>
       ${label || status ? `<div class="pline"><span class="small ${isMe ? '' : 'muted'}">${label}</span><div class="pstatus">${status}</div></div>` : ''}
-      ${wonFlow(p.seatId, hold ? g.idx : -1)}
-      ${isMe && hidden ? '<p class="small muted"><span class="legend-private"></span> Dashed cards are face down to everyone else.</p>' : ''}</div>`;
+      ${wonFlow(p.seatId, hold ? g.idx : -1)}</div>`;
   }).join('');
   // Rebuild only on change, so the final-pile reveal animation doesn't replay.
   if (html !== playersHTML) { playersHTML = html; $('#players').innerHTML = html; }
