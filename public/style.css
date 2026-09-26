@@ -288,9 +288,9 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 /* Theme picker */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .hero-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.theme-select{padding:6px 8px;font-size:.88rem;font-weight:600;border-radius:999px;background:var(--surface);cursor:pointer}
+.theme-select,.deck-select{padding:6px 8px;font-size:.88rem;font-weight:600;border-radius:999px;background:var(--surface);cursor:pointer}
 .bar-right{flex-wrap:wrap;justify-content:flex-end}
-@media (max-width:520px){.wrap.wide .bar .theme-select{padding:4px 6px;font-size:.85rem}}
+@media (max-width:520px){.wrap.wide .bar .theme-select,.wrap.wide .bar .deck-select{padding:4px 6px;font-size:.85rem}}
 /* The current pile can have 7 cards: let them wrap on narrow screens instead of overflowing */
 #stage{min-width:0}
 @media (max-width:520px){.stage-cards .pilegrid{display:flex;flex-wrap:wrap}}
@@ -299,3 +299,25 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 #autobox:empty{display:none}
 .autoallin{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12);cursor:pointer;font-size:.92rem;line-height:1.35}
 .autoallin input{width:18px;height:18px;margin:1px 0 0;flex:none;accent-color:var(--brass)}
+
+/* 4-color deck: each suit gets its own solid card color with white rank and suit */
+:root[data-deck="four"] .card.s-s{--suit:#2d2d2d}
+:root[data-deck="four"] .card.s-h{--suit:#c7322b}
+:root[data-deck="four"] .card.s-d{--suit:#1f5fd1}
+:root[data-deck="four"] .card.s-c{--suit:#2f8a3b}
+:root[data-deck="four"] .card:not(.back){background:var(--suit);color:#fff}
+:root[data-deck="four"] .card.private{background:repeating-linear-gradient(135deg,var(--suit) 0 6px,color-mix(in srgb,var(--suit) 82%,#fff) 6px 12px)}
+:root[data-deck="four"] .card:not(.back):not(.private){box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 1px 0 rgba(0,0,0,.25),0 6px 14px rgba(0,0,0,.22)}
+:root[data-deck="four"] .card.sm:not(.back):not(.private){box-shadow:inset 0 0 0 1px rgba(255,255,255,.18),0 1px 0 rgba(0,0,0,.2),0 2px 5px rgba(0,0,0,.15)}
+
+/* Display pickers: deck then theme, always together at the top right */
+.prefs{display:flex;gap:10px;align-items:center;flex:none}
+.bar .bar-right{margin-left:auto}
+.bar .prefs{order:2}
+/* When the header gets tight, the title and pickers share the top row and the game buttons drop below */
+@media (max-width:760px){
+  .bar .prefs{order:1;margin-left:auto}
+  .bar .bar-right{order:2;flex-basis:100%;justify-content:flex-end}
+  .bar .bar-right:not(:has(:not(.conn:empty))){display:none}
+}
+@media (max-width:520px){.prefs{gap:6px}.bar .prefs select,.hero-top .prefs select{padding:4px 6px;font-size:.85rem}}

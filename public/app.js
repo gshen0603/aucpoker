@@ -48,17 +48,29 @@ function updateConn() { const c = $('#conn'); if (c) { c.textContent = connected
 let toastTimer;
 function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 3500); }
 
-// ---------- Theme ----------
-// Auto follows the device setting; Light or Dark overrides it. index.html applies the saved choice before first paint.
+// ---------- Display settings (per browser) ----------
+// Theme: Auto follows the device setting; Light or Dark overrides it.
+// Deck: 2-color (red and black suits) or 4-color (each suit its own solid card color).
+// index.html applies both saved choices before first paint.
 function applyTheme(t) { if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
 function themePicker() {
   const t = store.get('ap.theme', 'auto');
   return `<label class="theme-pick"><span class="sr-only">Theme</span><select class="theme-select" aria-label="Theme">${[['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => `<option value="${v}" ${v === t ? 'selected' : ''}>${v === 'auto' ? '◐' : v === 'light' ? '☀' : '☾'} ${l}</option>`).join('')}</select></label>`;
 }
+function applyDeck(d) { if (d === 'four') document.documentElement.dataset.deck = 'four'; else delete document.documentElement.dataset.deck; }
+function deckPicker() {
+  const d = store.get('ap.deck', 'two');
+  return `<label class="theme-pick"><span class="sr-only">Deck colors</span><select class="deck-select" aria-label="Deck colors">${[['two', '2-color deck'], ['four', '4-color deck']].map(([v, l]) => `<option value="${v}" ${v === d ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`;
+}
+const prefPickers = () => deckPicker() + themePicker(); // theme last: always the rightmost
 document.addEventListener('change', e => {
-  if (!e.target.matches('.theme-select')) return;
-  store.set('ap.theme', e.target.value); applyTheme(e.target.value);
-  document.querySelectorAll('.theme-select').forEach(s => { s.value = e.target.value; });
+  if (e.target.matches('.theme-select')) {
+    store.set('ap.theme', e.target.value); applyTheme(e.target.value);
+    document.querySelectorAll('.theme-select').forEach(s => { s.value = e.target.value; });
+  } else if (e.target.matches('.deck-select')) {
+    store.set('ap.deck', e.target.value); applyDeck(e.target.value);
+    document.querySelectorAll('.deck-select').forEach(s => { s.value = e.target.value; });
+  }
 });
 
 // ---------- Helpers ----------
@@ -69,7 +81,7 @@ function cardHTML(c, { small = false, hi = false, dim = false } = {}) {
   const red = c.suit === 'h' || c.suit === 'd';
   // A face-down card we can still read is one you bought: only you see it until the showdown.
   const priv = !c.up && S && S.game && S.game.status !== 'showdown';
-  return `<div class="${cls} ${red ? 'red' : ''} ${priv ? 'private' : ''}" aria-label="${RANK_ONE[c.rank] ?? c.rank} of ${SUIT_NAME[c.suit]}${priv ? ', visible only to you' : ''}"${priv ? ' title="Only you can see this card"' : ''}><span class="r">${RANK_LABEL[c.rank] ?? c.rank}</span><span class="s">${SUIT_SYM[c.suit]}</span></div>`;
+  return `<div class="${cls} s-${c.suit} ${red ? 'red' : ''} ${priv ? 'private' : ''}" aria-label="${RANK_ONE[c.rank] ?? c.rank} of ${SUIT_NAME[c.suit]}${priv ? ', visible only to you' : ''}"${priv ? ' title="Only you can see this card"' : ''}><span class="r">${RANK_LABEL[c.rank] ?? c.rank}</span><span class="s">${SUIT_SYM[c.suit]}</span></div>`;
 }
 const G = () => S.game;
 const pl = id => G().players.find(p => p.seatId === id);
@@ -116,7 +128,7 @@ function standingsHTML(m, { compact = false } = {}) {
 function rulesHTML() {
   return `<details class="rules panel"><summary>How it plays</summary>
   <div class="rules-cols">
-    <div><h3>Hand ranks, high to low</h3><ol>${[8, 7, 6, 5, 4, 3, 2, 1, 0].map(i => `<li>${CAT_NAME[i]}</li>`).join('')}</ol>
+    <div><h3>Hand ranks, high to low</h3><ol><li>Royal flush (10 to A, one suit)</li>${[8, 7, 6, 5, 4, 3, 2, 1, 0].map(i => `<li>${CAT_NAME[i]}</li>`).join('')}</ol>
       <p>The only straights are 9 to K and 10 to A, plus 8 to Q in the 4-player deck. Aces are high only, so A‑9‑10‑J‑Q is not a straight.</p></div>
     <div><h3>The deck and the deal</h3>
       <p>With 2 or 3 players the deck is 9 through A (24 cards); with 4 players it's 8 through A (28 cards). The cards are split at random into piles: 3 to 7 piles with 2 players, 4 to 7 with 3, and 6 to 8 with 4. With 3 or 4 players, every pile has 2 to 7 cards, and each card has a 60% chance of landing face up.</p>
@@ -136,7 +148,7 @@ function renderHome(msg) {
   const urlCode = new URLSearchParams(location.search).get('room') || '';
   $('#app').innerHTML = `<div class="wrap">
     <header class="hero">
-      <div class="hero-top"><div class="suits" aria-hidden="true">♠<span class="r">♥</span>♣<span class="r">♦</span></div>${themePicker()}</div>
+      <div class="hero-top"><div class="suits" aria-hidden="true">♠<span class="r">♥</span>♣<span class="r">♦</span></div><div class="prefs">${prefPickers()}</div></div>
       <h1>Auction Poker</h1>
       <p>Bid on piles of cards in sealed second-price auctions, then build the strongest five-card hand from everything you bought. Flushes outrank four of a kind.</p>
       <span id="conn" class="conn"></span>
@@ -171,7 +183,7 @@ function render() {
 function renderLobby() {
   const you = S.you, host = you.isHost, st = S.settings, lim = S.limits;
   mount('lobby-' + S.code, `<div class="wrap">
-    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${themePicker()}<button id="leave">Leave table</button></div></header>
+    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span><button id="leave">Leave table</button></div><div class="prefs">${prefPickers()}</div></header>
     <section class="panel roomhead"><div><p class="muted small">Table code</p><div class="roomcode">${esc(S.code)}</div></div>
       <div class="inline"><button id="copy">Copy invite link</button></div></section>
     <section class="panel"><div class="sec-head"><h2>Seats</h2><span id="seatcount" class="muted"></span></div><div id="seats" class="seatrows"></div><div id="addbot"></div></section>
@@ -228,7 +240,7 @@ let playersHTML = '', finalRevealAt = 0;
 function renderGame() {
   const g = G(), you = S.you;
   if (mount('game-' + g.id, `<div class="wrap wide">
-    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${themePicker()}${S.marathon ? `<span class="pill">Game ${S.marathon.played + 1} of ${S.marathon.total}</span>` : ''}<span id="pileLabel" class="pill"></span>${you.isHost ? `<button id="abandon">${S.marathon ? 'End marathon' : 'End game'}</button>` : ''}</div></header>
+    <header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${S.marathon ? `<span class="pill">Game ${S.marathon.played + 1} of ${S.marathon.total}</span>` : ''}<span id="pileLabel" class="pill"></span>${you.isHost ? `<button id="abandon">${S.marathon ? 'End marathon' : 'End game'}</button>` : ''}</div><div class="prefs">${prefPickers()}</div></header>
     <div class="gamegrid">
       <div class="gamemain">
         <section class="felt" id="stageWrap">
@@ -264,7 +276,7 @@ function renderGame() {
       ? `<strong>${esc(pl(r.winner).name)}</strong> has the biggest stack${r.tie ? ' (tied, won on a coin flip)' : ''} and takes the final pile, paying ${r.price} coin${r.price === 1 ? '' : 's'}.`
       : r.winner === null ? 'Nobody bid, so this pile is discarded.'
       : `<strong>${esc(pl(r.winner).name)}</strong> wins the pile${r.tie ? ' on a random tiebreak' : ''} and pays ${r.price} coin${r.price === 1 ? '' : 's'}.`;
-    foot = `${r.auto ? '<p class="stage-note">Everyone\'s all in. Stacks are revealed from smallest to biggest.</p>' : ''}<div class="result ${r.auto ? 'reveal' : ''}" ${r.auto ? revealDelay(n * 600 + 200) : ''}><p>${msg}</p><div class="inline" style="align-items:center"><span class="muted-felt" id="nextin"></span>${you.isHost ? `<button class="primary" id="next">${last ? 'Go to showdown' : 'Next pile now'}</button>` : ''}</div></div>`;
+    foot = `<div class="result ${r.auto ? 'reveal' : ''}" ${r.auto ? revealDelay(n * 600 + 200) : ''}><p>${msg}</p><div class="inline" style="align-items:center"><span class="muted-felt" id="nextin"></span>${you.isHost ? `<button class="primary" id="next">${last ? 'Go to showdown' : 'Next pile now'}</button>` : ''}</div></div>`;
   }
   // Only rebuild the stage when it actually changes, so the final reveal doesn't replay.
   const stageKey = [g.id, g.idx, g.status].join('|');
@@ -287,7 +299,7 @@ function renderGame() {
     if (g.status !== 'bidding') box.innerHTML = '';
     else if (!me) box.innerHTML = '<p class="muted">You\'re watching this game. You can take a seat in the lobby before the next one.</p>';
     else if (me.coins <= 0) box.innerHTML = '<p class="muted">You\'re out of coins, so you sit this pile out.</p>';
-    else if (g.myBid === null && g.myAutoAllIn) box.innerHTML = `<div class="mybid"><span class="status ok">Auto all-in</span><span class="amt">${me.coins}</span><span class="muted">coins go in when bidding closes. Untick Auto all-in to bid yourself.</span></div>`;
+    else if (g.myBid === null && g.myAutoAllIn) box.innerHTML = `<div class="mybid"><span class="status ok">Auto all-in</span><span class="amt">${me.coins}</span><span class="muted">coins</span></div>`;
     else if (g.myBid !== null) box.innerHTML = `<div class="mybid"><span class="status ok">✓ Locked</span><span class="amt">${g.myBid}</span><span class="muted">coins, sealed until bidding closes</span></div>`;
     else {
       box.innerHTML = `<div class="mybid-form"><label for="bidin" class="small muted">You have ${me.coins} coins</label>
@@ -310,7 +322,7 @@ function renderGame() {
   const auto = $('#autobox'), autoKey = [g.id, !!me, me ? me.coins > 0 : '', last, g.myAutoAllIn].join('|');
   if (auto.dataset.key !== autoKey) {
     auto.dataset.key = autoKey;
-    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><span><strong>Auto all-in</strong> <span class="muted-felt">Bid my whole stack on every pile. Nothing is locked: you can switch it off until bidding closes.</span></span></label>` : '';
+    auto.innerHTML = me && me.coins > 0 && !last ? `<label class="autoallin"><input type="checkbox" id="autoin" ${g.myAutoAllIn ? 'checked' : ''}><strong>Auto all-in</strong></label>` : '';
     if ($('#autoin')) $('#autoin').onchange = e => sendMsg({ type: 'autoAllIn', on: e.target.checked });
   }
 
@@ -323,11 +335,9 @@ function renderGame() {
   const held = r && r.auto && Date.now() < finalRevealAt;
   const html = g.players.map(p => {
     const hold = held && p.seatId === r.winner;
-    const cards = hold ? pilesOf(p.seatId).filter(x => x.i !== g.idx).flatMap(x => x.cards) : cardsOf(p.seatId), vis = cards.filter(c => c.up), hidden = cards.length - vis.length;
+    const cards = hold ? pilesOf(p.seatId).filter(x => x.i !== g.idx).flatMap(x => x.cards) : cardsOf(p.seatId);
     const isMe = p.seatId === you.seatId;
-    const label = isMe && cards.length
-      ? `Your hand: ${describe(score(cards))}${hidden ? `. Others see ${vis.length ? describe(score(vis)).toLowerCase() : 'nothing'} plus ${hidden} hidden.` : ''}`
-      : cards.length ? `Showing: ${vis.length ? describe(score(vis)) : 'nothing'}${hidden ? `, plus ${hidden} hidden` : ''}` : '';
+    const label = isMe && cards.length ? describe(score(cards)) : '';
     let status, win = false, rank = -1;
     if (!r) status = '';
     else {
@@ -340,15 +350,14 @@ function renderGame() {
       : `<span class="hstatus ${reveal ? 'reveal' : ''}" ${reveal ? revealDelay(rank * 600) : ''}>${b ? `<span class="amt">${b.amt}</span> <span class="muted">${r.auto ? 'all in' : r.timedOut.includes(b.pid) ? 'no bid in time' : 'bid'}</span>` : '<span class="muted">no bid</span>'}</span>`;
     return `<div class="slot player ${isMe ? 'me' : ''} ${win ? 'win' : ''}"><div class="slot-head"><strong>${esc(p.name)}</strong>${tags(p, true)}${head}${r && r.auto ? '' : `<span class="coins">${p.coins} coins</span>`}</div>
       ${label || status ? `<div class="pline"><span class="small ${isMe ? '' : 'muted'}">${label}</span><div class="pstatus">${status}</div></div>` : ''}
-      ${wonFlow(p.seatId, hold ? g.idx : -1)}
-      ${isMe && hidden ? '<p class="small muted"><span class="legend-private"></span> Dashed cards are face down to everyone else.</p>' : ''}</div>`;
+      ${wonFlow(p.seatId, hold ? g.idx : -1)}</div>`;
   }).join('');
   // Rebuild only on change, so the final-pile reveal animation doesn't replay.
   if (html !== playersHTML) { playersHTML = html; $('#players').innerHTML = html; }
 
   const rest = g.piles.slice(g.idx + 1);
   $('#upWrap').hidden = !rest.length;
-  $('#upcoming').innerHTML = rest.map((p, i) => { const fin = g.idx + 1 + i === g.piles.length - 1; return pileBox(`Pile ${g.idx + 2 + i}${fin ? ', final' : ''}`, p, { small: true, compact: true, maxCols: 7, final: fin, note: fin ? 'No bidding. Goes to the biggest coin stack.' : '' }); }).join('');
+  $('#upcoming').innerHTML = rest.map((p, i) => { const fin = g.idx + 1 + i === g.piles.length - 1; return pileBox(`Pile ${g.idx + 2 + i}${fin ? ', final' : ''}`, p, { small: true, compact: true, maxCols: 7, final: fin }); }).join('');
   tick();
 }
 
@@ -358,7 +367,7 @@ function renderShowdown() {
   const res = g.players.map(p => { const cards = cardsOf(p.seatId); return { p, cards, score: score(cards), best: new Set(bestFive(cards)) }; }).sort((a, b) => cmp(b.score, a.score));
   const top = res[0].score, winners = res.filter(r => top[0] >= 0 && cmp(r.score, top) === 0);
   const m = S.marathon;
-  mount('showdown-' + g.id, `<div class="wrap"><header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${themePicker()}${m ? `<span class="pill">Game ${m.played} of ${m.total}</span>` : ''}</div></header>
+  mount('showdown-' + g.id, `<div class="wrap"><header class="bar"><h1>Auction Poker</h1><div class="bar-right"><span id="conn" class="conn"></span>${m ? `<span class="pill">Game ${m.played} of ${m.total}</span>` : ''}</div><div class="prefs">${prefPickers()}</div></header>
     <section class="felt winner-banner" id="banner"></section>
     <section class="panel" id="standings" ${m ? '' : 'hidden'} style="margin-top:16px"></section>
     <section class="rank-list" id="ranks" style="margin-top:16px"></section>${rulesHTML()}</div>`);

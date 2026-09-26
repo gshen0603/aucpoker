@@ -125,7 +125,7 @@
     const c = s[0], a = s[1], b = s[2];
     switch (c) {
       case -1: return 'No cards';
-      case CAT.STRAIGHT_FLUSH: return `Straight flush, ${RANK_ONE[a]} high`;
+      case CAT.STRAIGHT_FLUSH: return a === 14 ? 'Royal flush' : `Straight flush, ${RANK_ONE[a]} high`;
       case CAT.FLUSH: return `Flush, ${RANK_ONE[a]} high`;
       case CAT.QUADS: return `Four ${RANK_MANY[a]}`;
       case CAT.FULL_HOUSE: return `Full house, ${RANK_MANY[a]} full of ${RANK_MANY[b]}`;
