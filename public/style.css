@@ -291,9 +291,10 @@ details.rules summary{cursor:pointer;font-weight:700;font-size:1.05rem}
 .theme-select,.deck-select{padding:6px 8px;font-size:.88rem;font-weight:600;border-radius:999px;background:var(--surface);cursor:pointer}
 .bar-right{flex-wrap:wrap;justify-content:flex-end}
 @media (max-width:520px){.wrap.wide .bar .theme-select,.wrap.wide .bar .deck-select{padding:4px 6px;font-size:.85rem}}
-/* The current pile can have 7 cards: let them wrap on narrow screens instead of overflowing */
+/* The current pile can have 7 cards: wrap them onto more rows whenever the space is narrower than the pile,
+   so they never slide under the bid box or off the felt */
 #stage{min-width:0}
-@media (max-width:520px){.stage-cards .pilegrid{display:flex;flex-wrap:wrap}}
+.stage-cards .pilegrid{display:flex;flex-wrap:wrap}
 .home-grid section+section{margin-top:0}
 /* Auto all-in toggle, on the felt under the pile */
 #autobox:empty{display:none}
