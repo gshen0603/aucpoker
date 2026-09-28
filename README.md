@@ -22,23 +22,6 @@ Open http://localhost:3000. To play with people on the same Wi-Fi, have them ope
 `http://<your computer's local IP>:3000` (find it with `ipconfig` on Windows or
 `ipconfig getifaddr en0` on a Mac).
 
-## Put it on the internet (free, about 5 minutes)
-
-1. Push this folder to a new GitHub repository.
-2. Go to https://render.com, sign in with GitHub, and choose **New → Web Service**.
-3. Pick the repository and set:
-   - Runtime: **Node**
-   - Build command: `npm install`
-   - Start command: `npm start`
-   - Instance type: **Free**
-4. Deploy. Render gives you a link like `https://auction-poker-xxxx.onrender.com`. Share that.
-
-Railway, Fly.io, or any host that runs a Node web server with WebSockets works the same way.
-The server listens on the `PORT` environment variable.
-
-Two things to know about free hosting: the server goes to sleep after about 15 minutes with no
-visitors (the first visit then takes ~30 seconds to wake it), and tables live in memory, so any
-restart or redeploy clears games in progress.
 
 ## How a game works
 
