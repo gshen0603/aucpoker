@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>War</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<script>try { var t = localStorage.getItem('ap.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; if (localStorage.getItem('ap.deck') === 'four') document.documentElement.dataset.deck = 'four'; } catch (e) {}</script>
+<style>
+.war-table{display:grid;gap:18px}
+.war-side{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.war-side h2{color:var(--felt-ink);margin:0;font-size:1.15rem}
+.war-count{color:var(--felt-muted);font-weight:600}
+.war-row{display:flex;flex-wrap:wrap;gap:8px;min-height:82px;align-items:center}
+.war-msg{min-height:1.5em;text-align:center;font-size:1.1rem;font-weight:600;color:var(--felt-ink)}
+.war-msg.win{color:#9fe0b5}.war-msg.lose{color:#f2a58f}
+.war-bar{height:10px;border-radius:999px;background:rgba(0,0,0,.25);overflow:hidden}
+.war-bar span{display:block;height:100%;background:var(--brass);transition:width .25s}
+.war-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:18px}
+.war-controls .spacer{flex:1}
+a.pill{color:inherit;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar"><h1>War</h1><div class="bar-right"><a class="pill" href="/">Auction Poker</a></div></header>
+  <div class="felt">
+    <div class="war-table">
+      <div class="war-side"><h2>Computer</h2><span class="war-count" id="cpuCount"></span></div>
+      <div class="war-row" id="cpuRow" aria-label="Computer's cards in play"></div>
+      <div class="war-bar" aria-hidden="true"><span id="share"></span></div>
+      <p class="war-msg" id="msg" role="status"></p>
+      <div class="war-row" id="youRow" aria-label="Your cards in play"></div>
+      <div class="war-side"><h2>You</h2><span class="war-count" id="youCount"></span></div>
+    </div>
+  </div>
+  <div class="war-controls">
+    <button class="primary big" id="flip">Flip</button>
+    <button id="auto">Auto-play</button>
+    <span class="spacer"></span>
+    <span class="muted small" id="turns"></span>
+    <button id="restart">New game</button>
+  </div>
+  <details class="panel" style="margin-top:16px"><summary><strong>How to play</strong></summary>
+    <p class="muted" style="margin-top:10px">The 52-card deck is split evenly. Each turn both players flip their top card and the higher rank (aces high) takes both. On a tie it's war: each player lays 3 cards face down and 1 face up, and the higher face-up card takes everything on the table. Ties repeat the war. A player short of cards for a war plays what they have, using their last card face up. Take all 52 cards to win.</p>
+  </details>
+</div>
+<script src="/war.js"></script>
+</body>
+</html>
