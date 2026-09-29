@@ -161,7 +161,7 @@ function renderHome(msg) {
         <div class="inline"><input id="code" class="code-input" maxlength="4" autocomplete="off" value="${esc(urlCode)}" placeholder="ABCD"><button class="primary" id="join">Join</button></div></div></section>
       <section class="panel"><h2>Start a table</h2><p class="muted" style="margin-bottom:12px">You'll host: pick the rules, add bots, and deal when everyone's in.</p>
         <button class="primary" id="create">Start a new table</button></section>
-    </div>${rulesHTML()}</div>`;
+    </div>${rulesHTML()}<p class="muted small" style="margin-top:16px">Want something simpler? <a href="/war.html">Play War against the computer</a>.</p></div>`;
   const saveName = () => { const n = $('#name').value.trim(); if (!n) { toast('Enter your name first.'); $('#name').focus(); return false; } store.set('ap.name', n); return true; };
   $('#create').onclick = () => { if (saveName()) joinRoom('create'); };
   $('#join').onclick = () => { const c = $('#code').value.trim().toUpperCase(); if (!saveName()) return; if (c.length !== 4) { toast('Table codes are 4 letters.'); return; } joinRoom('join', { code: c }); };
